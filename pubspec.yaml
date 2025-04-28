@@ -36,6 +36,10 @@ dependencies:
     sdk: flutter
   font_awesome_flutter: ^10.6.0
   shared_preferences: ^2.2.2
+  file_picker: ^5.2.0
+  flutter_sound: ^9.2.13
+  permission_handler: ^10.2.0
+  path_provider: ^2.0.11
   # Pour ouvrir des URL, faire des appels, etc.
   url_launcher: ^6.1.14
 

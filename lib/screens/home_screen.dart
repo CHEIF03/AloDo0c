@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'InformationDoc/doctors_screen.dart';  // Assurez-vous que ce chemin est correct
 import 'InforamtionPatient/patient_profile_screen.dart'; // Profile de Patient
 import 'rdv/appointments_screen.dart';
+import 'messages_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -216,6 +217,9 @@ class HomeTab extends StatelessWidget {
               TextButton(
                 onPressed: () {
                   // Naviguer vers l'onglet médecins
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => DoctorsScreen()),
+                  );
                 },
                 child: const Text(
                   'Voir tous',
@@ -272,7 +276,12 @@ class HomeTab extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () {
-                  // Voir tous les rendez-vous
+                  // Naviguer vers l'onglet "à venir" dans AppointmentsScreen
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => AppointmentsScreen(initialIndex: 1),
+                    ),
+                  );
                 },
                 child: const Text(
                   'Voir tous',
@@ -644,6 +653,27 @@ class MessagesTab extends StatelessWidget {
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: () {
+              // Navigation vers l'écran de messages
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MessagesScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.mail_outline),
+            label: const Text('Consulter mes messages'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0D8B8B),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),

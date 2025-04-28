@@ -6,7 +6,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AppointmentsScreen extends StatefulWidget {
-  const AppointmentsScreen({Key? key}) : super(key: key);
+  final int initialIndex;
+
+  const AppointmentsScreen({Key? key, this.initialIndex = 0}) : super(key: key);
 
   @override
   State<AppointmentsScreen> createState() => _AppointmentsScreenState();
@@ -120,7 +122,11 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialIndex, // Utiliser l'initialIndex fourni
+    );
     _searchController.addListener(_onSearchChanged);
   }
 
