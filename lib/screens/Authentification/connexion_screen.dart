@@ -31,6 +31,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
         _isLoading = true;
       });
 
+
       // Simuler une connexion (en pratique, vous appelleriez votre API ici)
       Future.delayed(const Duration(seconds: 2), () {
         // Une fois connecté, naviguer vers la page d'accueil

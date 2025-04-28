@@ -239,16 +239,19 @@ class HomeTab extends StatelessWidget {
                   name: 'Dr. Karim Alami',
                   speciality: 'Cardiologue',
                   rating: 4.9,
+                  imagePath: 'assets/images/med1.jpg',
                 ),
                 _buildDoctorCard(
                   name: 'Dr. Amina Benali',
                   speciality: 'Dermatologue',
                   rating: 4.8,
+                  imagePath: 'assets/images/doc8.jpeg',
                 ),
                 _buildDoctorCard(
                   name: 'Dr. Mehdi Rami',
                   speciality: 'Pédiatre',
                   rating: 4.7,
+                  imagePath: 'assets/images/med2.png',
                 ),
               ],
             ),
@@ -335,11 +338,11 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  // Widget pour les cartes de médecin
   Widget _buildDoctorCard({
     required String name,
     required String speciality,
     required double rating,
+    required String imagePath, // Chemin local de l'image
   }) {
     return Container(
       width: 160,
@@ -361,11 +364,8 @@ class HomeTab extends StatelessWidget {
           CircleAvatar(
             radius: 35,
             backgroundColor: Colors.grey[300],
-            child: const Icon(
-              Icons.person,
-              size: 40,
-              color: Colors.white,
-            ),
+            // Utiliser AssetImage pour les images locales
+            backgroundImage: AssetImage(imagePath),
           ),
           const SizedBox(height: 10),
           Text(
