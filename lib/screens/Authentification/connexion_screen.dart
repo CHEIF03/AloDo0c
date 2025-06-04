@@ -73,7 +73,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
 
                   // Welcome Text
                   const Text(
-                    'Bienvenue !',
+                    'Bienvenue!',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -187,7 +187,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
                         strokeWidth: 3,
                       )
                           : const Text(
-                        'Se connecter',
+                        'Se connecter1',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,

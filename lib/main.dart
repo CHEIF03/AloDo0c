@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'firebase_options.dart';
 
 // Importez vos écrans
 import 'screens/splash_screen.dart';
@@ -10,10 +13,58 @@ import 'screens/authentification/inscription_screen.dart';
 import 'screens/authentification/inscription_medecin_screen.dart';
 import 'screens/home_screen.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('fr_FR', null);
-  runApp(const AloDocApp());
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: _initializeApp(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: Text('Error: ${snapshot.error}'),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.done) {
+          return const AloDocApp();
+        }
+
+        return const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _initializeApp() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    if (kIsWeb) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.web,
+      );
+    } else {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+
+    await initializeDateFormatting('fr_FR', null);
+  }
 }
 
 class AloDocApp extends StatelessWidget {
@@ -44,7 +95,6 @@ class AloDocApp extends StatelessWidget {
           ),
         ),
       ),
-      // Définissez le SplashScreen comme écran initial
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
@@ -52,7 +102,7 @@ class AloDocApp extends StatelessWidget {
         '/login': (context) => const ConnexionScreen(),
         '/signup': (context) => const InscriptionScreen(),
         '/doctor_signup': (context) => const InscriptionMedecinScreen(),
-        '/home': (context) => const HomeScreen(), // Nouvelle route pour la page d'accueil
+        '/home': (context) => const HomeScreen(),
       },
     );
   }

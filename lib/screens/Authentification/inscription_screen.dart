@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class InscriptionScreen extends StatefulWidget {
   const InscriptionScreen({Key? key}) : super(key: key);
@@ -17,6 +19,116 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
   final _telephoneController = TextEditingController();
   bool _obscurePassword = true;
   String? _sexe;
+  bool _isLoading = false;
+
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
+
+  Future<void> _registerUser() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        print('Starting user registration process...');
+        print('Email: ${_emailController.text.trim()}');
+        
+        // Create user with email and password
+        final userCredential = await _auth.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+
+        print('User created in Firebase Auth with UID: ${userCredential.user?.uid}');
+
+        // Create user data map
+        final userData = {
+          'nom': _nomController.text,
+          'prenom': _prenomController.text,
+          'email': _emailController.text,
+          'age': int.parse(_ageController.text),
+          'sexe': _sexe,
+          'telephone': _telephoneController.text,
+          'createdAt': FieldValue.serverTimestamp(),
+          'role': 'patient',
+        };
+
+        print('Attempting to store user data in Firestore...');
+        print('User data: $userData');
+
+        // Store additional user information in Firestore
+        await _firestore.collection('users').doc(userCredential.user!.uid).set(userData);
+
+        print('User data successfully stored in Firestore');
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Inscription réussie!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          
+          // Add delay before navigation to show the success message
+          await Future.delayed(const Duration(seconds: 2));
+          
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/home');
+          }
+        }
+      } on FirebaseAuthException catch (e) {
+        print('FirebaseAuthException caught: ${e.code}');
+        print('Error message: ${e.message}');
+        
+        String message;
+        switch (e.code) {
+          case 'weak-password':
+            message = 'Le mot de passe est trop faible.';
+            break;
+          case 'email-already-in-use':
+            message = 'Un compte existe déjà avec cet email.';
+            break;
+          case 'invalid-email':
+            message = 'L\'adresse email n\'est pas valide.';
+            break;
+          case 'network-request-failed':
+            message = 'Problème de connexion réseau. Vérifiez votre connexion internet.';
+            break;
+          default:
+            message = 'Une erreur s\'est produite: ${e.message}';
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Unexpected error caught: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Une erreur s\'est produite: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -265,26 +377,23 @@ class _InscriptionScreenState extends State<InscriptionScreen> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          // Logique d'inscription
-                          // Naviguer vers l'écran principal après inscription
-                        }
-                      },
+                      onPressed: _isLoading ? null : _registerUser,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0D8B8B),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text(
-                        'S\'inscrire',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'S\'inscrire',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
 

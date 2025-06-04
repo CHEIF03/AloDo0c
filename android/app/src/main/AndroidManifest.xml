@@ -1,7 +1,8 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.alodoc">
     <application
-        android:label="projects"
-        android:name="${applicationName}"
+        android:label="AloDoc"
+        android:name=".MainApplication"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
@@ -42,4 +43,7 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+    <!-- Internet Permission -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 </manifest>

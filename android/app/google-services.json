@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "42140892607",
+    "project_id": "alodoc-8a399",
+    "storage_bucket": "alodoc-8a399.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:42140892607:android:a9ea68c83386d409b7b50a",
+        "android_client_info": {
+          "package_name": "com.alodoc"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1sYNLggu2MAqi6aOpsVY1LeeLFzFM1ug"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+} 
