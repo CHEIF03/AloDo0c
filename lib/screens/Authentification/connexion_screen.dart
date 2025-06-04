@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../home_screen.dart'; // Importation de la page d'accueil
 
+enum UserType { patient, doctor }
+
 class ConnexionScreen extends StatefulWidget {
   const ConnexionScreen({Key? key}) : super(key: key);
 
@@ -247,6 +249,122 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
     }
   }
 
+  // Fonction pour afficher le dialogue de sélection du type d'utilisateur
+  Future<void> _showUserTypeDialog() async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Choisissez votre profil',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0D8B8B),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Êtes-vous un patient ou un médecin ?',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildUserTypeButton(
+                      context: context,
+                      type: UserType.patient,
+                      icon: Icons.person,
+                      label: 'Patient',
+                      route: '/signup',
+                    ),
+                    _buildUserTypeButton(
+                      context: context,
+                      type: UserType.doctor,
+                      icon: Icons.medical_services,
+                      label: 'Médecin',
+                      route: '/doctor_signup',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Annuler',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Widget pour construire les boutons de type d'utilisateur
+  Widget _buildUserTypeButton({
+    required BuildContext context,
+    required UserType type,
+    required IconData icon,
+    required String label,
+    required String route,
+  }) {
+    return InkWell(
+      onTap: () {
+        Navigator.pop(context); // Fermer le dialogue
+        Navigator.pushNamed(context, route);
+      },
+      child: Container(
+        width: 120,
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D8B8B).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: const Color(0xFF0D8B8B),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 40,
+              color: const Color(0xFF0D8B8B),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF0D8B8B),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _getErrorMessage(String code) {
     switch (code) {
       case 'user-not-found':
@@ -483,10 +601,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {
-                          // Naviguer vers la page d'inscription
-                          Navigator.pushNamed(context, '/signup');
-                        },
+                        onTap: _showUserTypeDialog,
                         child: const Text(
                           "S'inscrire",
                           style: TextStyle(

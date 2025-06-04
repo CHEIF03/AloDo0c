@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 
 class InscriptionMedecinScreen extends StatefulWidget {
   const InscriptionMedecinScreen({Key? key}) : super(key: key);
@@ -17,8 +20,9 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
   final _passwordController = TextEditingController();
   final _telephoneCabinetController = TextEditingController();
   final _telephoneMobileController = TextEditingController();
+  final _inpeController = TextEditingController();
 
-  // Variables pour les champs dropdown
+  // Variables pour les  champs dropdown
   String? _titre;
   String? _ville;
   String? _specialite;
@@ -26,6 +30,9 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
   // Variables pour les cases à cocher
   bool _accepteConditions = false;
   bool _accepteCommunications = false;
+
+  // Variable pour le chargement
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -35,6 +42,7 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
     _passwordController.dispose();
     _telephoneCabinetController.dispose();
     _telephoneMobileController.dispose();
+    _inpeController.dispose();
     super.dispose();
   }
 
@@ -184,13 +192,13 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                           child: TextFormField(
                             controller: _prenomController,
                             decoration: const InputDecoration(
-                              labelText: 'First name',
+                              labelText: 'Prénom',
                               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                               border: InputBorder.none,
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Obligatoire';
+                                return 'Champ obligatoire';
                               }
                               return null;
                             },
@@ -211,13 +219,13 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                           child: TextFormField(
                             controller: _nomController,
                             decoration: const InputDecoration(
-                              labelText: 'Last name',
+                              labelText: 'Nom',
                               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                               border: InputBorder.none,
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Obligatoire';
+                                return 'Champ obligatoire';
                               }
                               return null;
                             },
@@ -245,16 +253,16 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             decoration: const InputDecoration(
-                              labelText: 'Email address',
+                              labelText: 'Adresse email',
                               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                               border: InputBorder.none,
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Obligatoire';
+                                return 'Champ obligatoire';
                               }
                               if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                                return 'Email invalide';
+                                return 'Adresse email invalide';
                               }
                               return null;
                             },
@@ -276,16 +284,16 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                             controller: _passwordController,
                             obscureText: true,
                             decoration: const InputDecoration(
-                              labelText: 'Password',
+                              labelText: 'Mot de passe',
                               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                               border: InputBorder.none,
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Obligatoire';
+                                return 'Champ obligatoire';
                               }
                               if (value.length < 8) {
-                                return 'Min. 8 caractères';
+                                return 'Minimum 8 caractères';
                               }
                               return null;
                             },
@@ -305,7 +313,7 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                     child: DropdownButtonFormField<String>(
                       value: _specialite,
                       decoration: const InputDecoration(
-                        labelText: 'Specialty',
+                        labelText: 'Spécialité',
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         border: InputBorder.none,
                       ),
@@ -342,7 +350,41 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                   ),
                   const SizedBox(height: 15),
 
-                  // Ligne 5: Téléphone cabinet
+                  // Ligne 5: Code INPE
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextFormField(
+                      controller: _inpeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Code INPE',
+                        hintText: 'Ex: INPE123456AB (12 caractères)',
+                        helperText: 'Format: lettres majuscules et chiffres uniquement',
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        border: InputBorder.none,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Code INPE obligatoire';
+                        }
+                        if (!RegExp(r'^[A-Z0-9]{12}$').hasMatch(value)) {
+                          return 'Format invalide. Ex: INPE123456AB';
+                        }
+                        return null;
+                      },
+                      textCapitalization: TextCapitalization.characters,
+                      style: const TextStyle(letterSpacing: 1.5), // Pour une meilleure lisibilité
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9]')),
+                        LengthLimitingTextInputFormatter(12),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Ligne 6: Téléphone cabinet
                   Container(
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey.shade300),
@@ -352,13 +394,13 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                       controller: _telephoneCabinetController,
                       keyboardType: TextInputType.phone,
                       decoration: const InputDecoration(
-                        labelText: 'Phone number cabinet',
+                        labelText: 'Téléphone du cabinet',
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         border: InputBorder.none,
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Obligatoire';
+                          return 'Champ obligatoire';
                         }
                         return null;
                       },
@@ -366,7 +408,7 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                   ),
                   const SizedBox(height: 15),
 
-                  // Ligne 6: Téléphone mobile
+                  // Ligne 7: Téléphone mobile
                   Container(
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey.shade300),
@@ -376,13 +418,13 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                       controller: _telephoneMobileController,
                       keyboardType: TextInputType.phone,
                       decoration: const InputDecoration(
-                        labelText: 'Phone number mobile',
+                        labelText: 'Téléphone mobile',
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                         border: InputBorder.none,
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Obligatoire';
+                          return 'Champ obligatoire';
                         }
                         return null;
                       },
@@ -390,7 +432,7 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Ligne 7: Case à cocher Conditions d'utilisation
+                  // Ligne 8: Case à cocher Conditions d'utilisation
                   Row(
                     children: [
                       Switch(
@@ -404,7 +446,7 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                       ),
                       Expanded(
                         child: Text(
-                          "J'accepte les règles et conditions d'utilisation de Alo Doc. En cochant cette case, je m'engage à respecter les normes",
+                          "J'accepte les règles et conditions d'utilisation de AloDoc. En cochant cette case, je m'engage à respecter les normes",
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey.shade700,
@@ -415,7 +457,7 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Ligne 8: Case à cocher Communications
+                  // Ligne 9: Case à cocher Communications
                   Row(
                     children: [
                       Switch(
@@ -429,7 +471,7 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                       ),
                       Expanded(
                         child: Text(
-                          "J'accepte de recevoir des communications et des informations de la part de Alo Doc concernant les mises à jour",
+                          "J'accepte de recevoir des communications et des informations de la part de AloDoc concernant les mises à jour",
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey.shade700,
@@ -444,12 +486,87 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (_formKey.currentState!.validate() && _accepteConditions) {
-                          // Logique d'inscription
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Inscription en cours de traitement')),
-                          );
+                          try {
+                            setState(() {
+                              _isLoading = true;
+                            });
+
+                            // Créer l'utilisateur dans Firebase Auth
+                            final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                              email: _emailController.text.trim(),
+                              password: _passwordController.text,
+                            );
+
+                            // Créer le document du médecin dans Firestore
+                            await FirebaseFirestore.instance.collection('doctors').doc(userCredential.user!.uid).set({
+                              'titre': _titre,
+                              'prenom': _prenomController.text,
+                              'nom': _nomController.text,
+                              'email': _emailController.text,
+                              'ville': _ville,
+                              'specialite': _specialite,
+                              'inpe': _inpeController.text.toUpperCase(),
+                              'telephoneCabinet': _telephoneCabinetController.text,
+                              'telephoneMobile': _telephoneMobileController.text,
+                              'accepteCommunications': _accepteCommunications,
+                              'createdAt': FieldValue.serverTimestamp(),
+                              'role': 'doctor',
+                              'isApproved': false, // Nécessite une approbation admin
+                            });
+
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Inscription réussie! En attente d\'approbation.'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+
+                              // Attendre que le message soit affiché avant de naviguer
+                              await Future.delayed(const Duration(seconds: 3));
+                              
+                              if (mounted) {
+                                Navigator.pushReplacementNamed(context, '/home');
+                              }
+                            }
+                          } on FirebaseAuthException catch (e) {
+                            String message;
+                            switch (e.code) {
+                              case 'weak-password':
+                                message = 'Le mot de passe est trop faible.';
+                                break;
+                              case 'email-already-in-use':
+                                message = 'Un compte existe déjà avec cet email.';
+                                break;
+                              case 'invalid-email':
+                                message = 'L\'adresse email n\'est pas valide.';
+                                break;
+                              default:
+                                message = 'Une erreur s\'est produite: ${e.message}';
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(message),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Une erreur s\'est produite: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          }
                         } else if (!_accepteConditions) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -466,15 +583,55 @@ class _InscriptionMedecinScreenState extends State<InscriptionMedecinScreen> {
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                       ),
-                      child: const Text(
-                        "S'inscrire",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              "S'inscrire",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
+                  
+                  const SizedBox(height: 30),
+                  
+                  // Lien Se connecter
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Vous avez déjà un compte ? ",
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pushReplacementNamed(context, '/login'),
+                          child: const Text(
+                            "Se connecter",
+                            style: TextStyle(
+                              color: Color(0xFF0D8B8B),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
                 ],
               ),
             ),

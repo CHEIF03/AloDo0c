@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'authentification/inscription_medecin_screen.dart';
 
+enum UserType { patient, doctor }
+
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
 
@@ -26,6 +28,117 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: 'Prenez un rendez-vous en ligne ou en personne avec un médecin',
     ),
   ];
+
+  void _showUserTypeDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Choisissez votre profil',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0D8B8B),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Êtes-vous un patient ou un médecin ?',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildUserTypeButton(
+                      type: UserType.patient,
+                      icon: Icons.person,
+                      label: 'Patient',
+                      route: '/signup',
+                    ),
+                    _buildUserTypeButton(
+                      type: UserType.doctor,
+                      icon: Icons.medical_services,
+                      label: 'Médecin',
+                      route: '/doctor_signup',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Annuler',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserTypeButton({
+    required UserType type,
+    required IconData icon,
+    required String label,
+    required String route,
+  }) {
+    return InkWell(
+      onTap: () {
+        Navigator.pop(context); // Fermer le dialogue
+        Navigator.pushNamed(context, route);
+      },
+      child: Container(
+        width: 120,
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D8B8B).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: const Color(0xFF0D8B8B),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 40,
+              color: const Color(0xFF0D8B8B),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF0D8B8B),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -57,7 +170,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     _currentPage = page;
                   });
                 },
-                physics: const BouncingScrollPhysics(), // Pour un défilement plus fluide
+                physics: const BouncingScrollPhysics(),
                 itemCount: _onboardingItems.length,
                 itemBuilder: (context, index) {
                   return OnboardingCard(item: _onboardingItems[index]);
@@ -70,7 +183,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
                 _onboardingItems.length,
-                    (index) => buildDot(index),
+                (index) => buildDot(index),
               ),
             ),
 
@@ -84,7 +197,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        // Navigation vers la page de connexion
                         Navigator.pushNamed(context, '/login');
                       },
                       style: OutlinedButton.styleFrom(
@@ -106,10 +218,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   const SizedBox(width: 15),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        // Navigation vers la page d'inscription
-                        Navigator.pushNamed(context, '/signup');
-                      },
+                      onPressed: _showUserTypeDialog,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0D8B8B),
                         shape: RoundedRectangleBorder(
@@ -129,42 +238,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ],
               ),
             ),
-
-            // "Are you a doctor?" text
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Êtes-vous un médecin ? ',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () {
-                      // Naviguer vers la page d'inscription médecin
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const InscriptionMedecinScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Cliquez ici',
-                      style: TextStyle(
-                        color: Color(0xFF0D8B8B),
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
