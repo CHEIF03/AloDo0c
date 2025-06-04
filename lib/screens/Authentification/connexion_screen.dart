@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../home_screen.dart'; // Importation de la page d'accueil
 
 class ConnexionScreen extends StatefulWidget {
@@ -13,8 +15,12 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _auth = FirebaseAuth.instance;
+  final _googleSignIn = GoogleSignIn();
+  
   bool _obscurePassword = true;
   bool _isLoading = false; // Pour afficher un indicateur de chargement
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -23,24 +29,138 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
     super.dispose();
   }
 
-  // Fonction pour gérer la connexion
-  void _handleLogin() {
-    if (_formKey.currentState!.validate()) {
-      // Afficher un indicateur de chargement
+  // Fonction pour gérer la connexion avec email/mot de passe
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Tentative de connexion
+      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      // Vérifier si la connexion a réussi et si l'utilisateur existe
+      final User? user = userCredential.user;
+      
+      if (mounted) {
+        if (user != null) {
+          // Connexion réussie
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          // Cas improbable où userCredential.user est null
+          setState(() {
+            _errorMessage = 'Erreur de connexion. Veuillez réessayer.';
+          });
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = _getErrorMessage(e.code);
+        _passwordController.clear(); // Effacer le mot de passe en cas d'erreur
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Une erreur est survenue. Veuillez réessayer.';
+        _passwordController.clear(); // Effacer le mot de passe en cas d'erreur
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Fonction pour la connexion avec Google
+  Future<void> _handleGoogleSignIn() async {
+    try {
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
       });
 
-      // Simuler une connexion (en pratique, vous appelleriez votre API ici)
-      Future.delayed(const Duration(seconds: 2), () {
-        // Une fois connecté, naviguer vers la page d'accueil
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
-          ),
-        );
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // L'utilisateur a annulé la connexion Google
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Connexion Google annulée';
+        });
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Tentative de connexion avec les credentials Google
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (mounted) {
+        if (user != null) {
+          // Connexion réussie
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          setState(() {
+            _errorMessage = 'Erreur de connexion avec Google. Veuillez réessayer.';
+          });
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = _getErrorMessage(e.code);
       });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Erreur de connexion avec Google. Veuillez réessayer.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _getErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'Aucun utilisateur trouvé avec cet email.';
+      case 'wrong-password':
+        return 'Mot de passe incorrect.';
+      case 'invalid-email':
+        return 'Email invalide.';
+      case 'user-disabled':
+        return 'Ce compte a été désactivé.';
+      case 'too-many-requests':
+        return 'Trop de tentatives de connexion. Veuillez réessayer plus tard.';
+      case 'operation-not-allowed':
+        return 'La connexion avec email/mot de passe n\'est pas activée.';
+      case 'network-request-failed':
+        return 'Erreur de connexion réseau. Vérifiez votre connexion internet.';
+      case 'invalid-credential':
+        return 'Les informations de connexion sont invalides.';
+      case 'account-exists-with-different-credential':
+        return 'Un compte existe déjà avec une autre méthode de connexion.';
+      default:
+        return 'Une erreur est survenue. Veuillez réessayer. ($code)';
     }
   }
 
@@ -169,6 +289,18 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
 
                   const SizedBox(height: 30),
 
+                  if (_errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+
                   // Login Button
                   SizedBox(
                     width: double.infinity,
@@ -183,17 +315,17 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 3,
-                      )
+                              color: Colors.white,
+                              strokeWidth: 3,
+                            )
                           : const Text(
-                        'Se connecter1',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                              'Se connecter',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
 
@@ -215,24 +347,14 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _socialLoginButton(
-                        onPressed: () {
-                          // Se connecter avec Google puis naviguer vers HomeScreen
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const HomeScreen()),
-                          );
-                        },
+                        onPressed: _handleGoogleSignIn,
                         icon: FontAwesomeIcons.google,
                         color: Colors.red,
                       ),
                       const SizedBox(width: 20),
                       _socialLoginButton(
                         onPressed: () {
-                          // Se connecter avec Facebook puis naviguer vers HomeScreen
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const HomeScreen()),
-                          );
+                          // TODO: Implement Facebook login if needed
                         },
                         icon: FontAwesomeIcons.facebookF,
                         color: Colors.blue,
