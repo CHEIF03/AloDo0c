@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:maps_launcher/maps_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../InformationDoc/doctors_screen.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({Key? key}) : super(key: key);
@@ -267,11 +268,22 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          _showNewAppointmentDialog();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const DoctorsScreen(),
+            ),
+          ).then((result) {
+            if (result != null && result is Map<String, dynamic>) {
+              setState(() {
+                _appointments.add(result);
+              });
+            }
+          });
         },
         backgroundColor: const Color(0xFF0D8B8B),
         icon: const Icon(Icons.add),
-        label: const Text('Nouveau'),
+        label: const Text('Nouveau rendez-vous'),
       ),
     );
   }
@@ -441,7 +453,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
       title: 'Aucun rendez-vous à venir',
       subtitle: 'Prenez rendez-vous avec un professionnel de santé',
       buttonText: 'Prendre un rendez-vous',
-      onButtonPressed: _showNewAppointmentDialog,
+      onButtonPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DoctorsScreen(),
+          ),
+        );
+      },
     )
         : ListView.builder(
       padding: const EdgeInsets.all(8.0),
@@ -512,13 +531,25 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
           if (buttonText != null && onButtonPressed != null) ...[
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: onButtonPressed,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DoctorsScreen(),
+                  ),
+                ).then((result) {
+                  if (result != null && result is Map<String, dynamic>) {
+                    setState(() {
+                      _appointments.add(result);
+                    });
+                  }
+                });
+              },
               icon: const Icon(Icons.add),
               label: Text(buttonText),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D8B8B),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -878,7 +909,7 @@ ${appointment['address']}
 
   // Modifier un rendez-vous
   void _editAppointment(Map<String, dynamic> appointment) {
-    _showNewAppointmentDialog(appointmentToEdit: appointment);
+    _showEditAppointmentDialog(appointment, null, null);
   }
 
   // Afficher les détails du rendez-vous
@@ -1399,11 +1430,36 @@ ${appointment['address']}
     DateTime? initialDate,
     String? initialReason,
   }) {
-    final isEditing = appointmentToEdit != null;
+    if (appointmentToEdit != null) {
+      // If editing an existing appointment, show the edit dialog
+      _showEditAppointmentDialog(appointmentToEdit, initialDate, initialReason);
+    } else {
+      // For new appointments, navigate to the doctors list
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const DoctorsScreen(),
+        ),
+      ).then((result) {
+        if (result != null && result is Map<String, dynamic>) {
+          // Add the new appointment to the list
+          setState(() {
+            _appointments.add(result);
+          });
+        }
+      });
+    }
+  }
 
+  void _showEditAppointmentDialog(
+    Map<String, dynamic> appointmentToEdit,
+    DateTime? initialDate,
+    String? initialReason,
+  ) {
     final TextEditingController doctorController = TextEditingController(
-      text: isEditing ? appointmentToEdit['doctorName'] : '',
+      text: appointmentToEdit['doctorName'],
     );
+
     // Définir la liste des spécialités médicales
     final List<String> medicalSpecialties = [
       'Cardiologie',
@@ -1423,32 +1479,26 @@ ${appointment['address']}
       'Dentiste',
     ];
 
-// Variable pour stocker la spécialité sélectionnée
-    String selectedSpecialty = isEditing ? appointmentToEdit['specialty'] : medicalSpecialties[0];
+    String selectedSpecialty = appointmentToEdit['specialty'];
 
     final TextEditingController locationController = TextEditingController(
-      text: isEditing ? appointmentToEdit['location'] : '',
+      text: appointmentToEdit['location'],
     );
     final TextEditingController addressController = TextEditingController(
-      text: isEditing ? appointmentToEdit['address'] : '',
+      text: appointmentToEdit['address'],
     );
     final TextEditingController phoneController = TextEditingController(
-      text: isEditing ? appointmentToEdit['phone'] : '',
+      text: appointmentToEdit['phone'],
     );
     final TextEditingController notesController = TextEditingController(
-      text: isEditing ? appointmentToEdit['notes'] : initialReason ?? '',
+      text: appointmentToEdit['notes'],
     );
 
-    DateTime selectedDate = isEditing
-        ? appointmentToEdit['date']
-        : initialDate ?? DateTime.now().add(const Duration(days: 1));
-
-    TimeOfDay selectedTime = isEditing
-        ? TimeOfDay(
+    DateTime selectedDate = appointmentToEdit['date'];
+    TimeOfDay selectedTime = TimeOfDay(
       hour: appointmentToEdit['date'].hour,
       minute: appointmentToEdit['date'].minute,
-    )
-        : const TimeOfDay(hour: 9, minute: 0);
+    );
 
     showModalBottomSheet(
       context: context,
@@ -1461,10 +1511,7 @@ ${appointment['address']}
           builder: (BuildContext context, StateSetter setState) {
             return Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery
-                    .of(context)
-                    .viewInsets
-                    .bottom,
+                bottom: MediaQuery.of(context).viewInsets.bottom,
                 left: 20,
                 right: 20,
                 top: 20,
@@ -1488,11 +1535,9 @@ ${appointment['address']}
                     const SizedBox(height: 20),
 
                     // Titre
-                    Text(
-                      isEditing
-                          ? 'Modifier le rendez-vous'
-                          : 'Nouveau rendez-vous',
-                      style: const TextStyle(
+                    const Text(
+                      'Modifier le rendez-vous',
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 20,
                       ),
@@ -1504,8 +1549,7 @@ ${appointment['address']}
                       controller: doctorController,
                       decoration: const InputDecoration(
                         labelText: 'Nom du médecin *',
-                        prefixIcon: Icon(Icons.person, color: Color(
-                            0xFF0D8B8B)),
+                        prefixIcon: Icon(Icons.person, color: Color(0xFF0D8B8B)),
                         border: OutlineInputBorder(),
                         focusedBorder: OutlineInputBorder(
                           borderSide: BorderSide(color: Color(0xFF0D8B8B)),
@@ -1514,35 +1558,31 @@ ${appointment['address']}
                     ),
                     const SizedBox(height: 15),
 
-                // Puis, dans votre formulaire, au lieu du TextField:
-                DropdownButtonFormField<String>(
-                  value: selectedSpecialty,
-                  decoration: const InputDecoration(
-                    labelText: 'Spécialité *',
-                    prefixIcon: Icon(Icons.medical_services, color: Color(0xFF0D8B8B)),
-                    border: OutlineInputBorder(),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Color(0xFF0D8B8B)),
+                    // Spécialité
+                    DropdownButtonFormField<String>(
+                      value: selectedSpecialty,
+                      decoration: const InputDecoration(
+                        labelText: 'Spécialité *',
+                        prefixIcon: Icon(Icons.medical_services, color: Color(0xFF0D8B8B)),
+                        border: OutlineInputBorder(),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF0D8B8B)),
+                        ),
+                      ),
+                      items: medicalSpecialties.map((String specialty) {
+                        return DropdownMenuItem<String>(
+                          value: specialty,
+                          child: Text(specialty),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            selectedSpecialty = newValue;
+                          });
+                        }
+                      },
                     ),
-                  ),
-                  items: medicalSpecialties.map((String specialty) {
-                    return DropdownMenuItem<String>(
-                      value: specialty,
-                      child: Text(specialty),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      selectedSpecialty = newValue!;
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Veuillez sélectionner une spécialité';
-                    }
-                    return null;
-                  },
-                ),
                     const SizedBox(height: 15),
 
                     // Sélection de la date
@@ -1552,8 +1592,7 @@ ${appointment['address']}
                           context: context,
                           initialDate: selectedDate,
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(
-                              const Duration(days: 365)),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
                           builder: (context, child) {
                             return Theme(
                               data: Theme.of(context).copyWith(
@@ -1573,16 +1612,14 @@ ${appointment['address']}
                         }
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 15),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
                           children: [
-                            const Icon(
-                                Icons.calendar_today, color: Color(0xFF0D8B8B)),
+                            const Icon(Icons.calendar_today, color: Color(0xFF0D8B8B)),
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1595,8 +1632,7 @@ ${appointment['address']}
                                   ),
                                 ),
                                 Text(
-                                  DateFormat('EEEE d MMMM yyyy', 'fr_FR')
-                                      .format(selectedDate),
+                                  DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(selectedDate),
                                   style: const TextStyle(
                                     fontSize: 16,
                                   ),
@@ -1634,16 +1670,14 @@ ${appointment['address']}
                         }
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 15),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Row(
                           children: [
-                            const Icon(
-                                Icons.access_time, color: Color(0xFF0D8B8B)),
+                            const Icon(Icons.access_time, color: Color(0xFF0D8B8B)),
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1673,8 +1707,7 @@ ${appointment['address']}
                       controller: locationController,
                       decoration: const InputDecoration(
                         labelText: 'Lieu *',
-                        prefixIcon: Icon(Icons.location_on, color: Color(
-                            0xFF0D8B8B)),
+                        prefixIcon: Icon(Icons.location_on, color: Color(0xFF0D8B8B)),
                         border: OutlineInputBorder(),
                         focusedBorder: OutlineInputBorder(
                           borderSide: BorderSide(color: Color(0xFF0D8B8B)),
@@ -1753,21 +1786,18 @@ ${appointment['address']}
                                   locationController.text.isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text(
-                                        'Veuillez remplir tous les champs obligatoires'),
+                                    content: Text('Veuillez remplir tous les champs obligatoires'),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
                                 return;
                               }
 
-                              // Créer ou mettre à jour le rendez-vous
+                              // Mettre à jour le rendez-vous
                               final appointmentData = {
-                                'id': isEditing
-                                    ? appointmentToEdit['id']
-                                    : (_appointments.length + 1).toString(),
+                                'id': appointmentToEdit['id'],
                                 'doctorName': doctorController.text.trim(),
-                                'specialty': selectedSpecialty.trim(),
+                                'specialty': selectedSpecialty,
                                 'date': DateTime(
                                   selectedDate.year,
                                   selectedDate.month,
@@ -1775,46 +1805,29 @@ ${appointment['address']}
                                   selectedTime.hour,
                                   selectedTime.minute,
                                 ),
-                                'status': isEditing
-                                    ? appointmentToEdit['status']
-                                    : 'en attente',
+                                'status': appointmentToEdit['status'],
                                 'notes': notesController.text.trim(),
                                 'location': locationController.text.trim(),
                                 'address': addressController.text.trim(),
                                 'phone': phoneController.text.trim(),
-                                'photo': isEditing
-                                    ? appointmentToEdit['photo']
-                                    : 'assets/images/doc1.jpeg',
-                                'requiredDocs': isEditing
-                                    ? appointmentToEdit['requiredDocs']
-                                    : [],
-                                'preparation': isEditing
-                                    ? appointmentToEdit['preparation']
-                                    : '',
+                                'photo': appointmentToEdit['photo'],
+                                'requiredDocs': appointmentToEdit['requiredDocs'],
+                                'preparation': appointmentToEdit['preparation'],
                               };
 
                               setState(() {
-                                if (isEditing) {
-                                  // Mettre à jour le rendez-vous existant
-                                  final index = _appointments.indexWhere((
-                                      a) => a['id'] == appointmentToEdit['id']);
-                                  if (index != -1) {
-                                    _appointments[index] = appointmentData;
-                                  }
-                                } else {
-                                  // Ajouter un nouveau rendez-vous
-                                  _appointments.add(appointmentData);
+                                final index = _appointments.indexWhere((a) => a['id'] == appointmentToEdit['id']);
+                                if (index != -1) {
+                                  _appointments[index] = appointmentData;
                                 }
                               });
 
                               // Fermer la modal et afficher une confirmation
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(isEditing
-                                      ? 'Rendez-vous modifié avec succès'
-                                      : 'Rendez-vous créé avec succès'),
-                                  backgroundColor: const Color(0xFF0D8B8B),
+                                const SnackBar(
+                                  content: Text('Rendez-vous modifié avec succès'),
+                                  backgroundColor: Color(0xFF0D8B8B),
                                 ),
                               );
                             },
@@ -1825,7 +1838,7 @@ ${appointment['address']}
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: Text(isEditing ? 'Modifier' : 'Créer'),
+                            child: const Text('Modifier'),
                           ),
                         ),
                       ],

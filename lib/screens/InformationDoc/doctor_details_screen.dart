@@ -578,7 +578,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                 text: TextSpan(
                   style: const TextStyle(color: Colors.black, fontSize: 16),
                   children: [
-                    const TextSpan(text: 'Montant: '),
+                    const TextSpan(text: 'Tarif: '),
                     TextSpan(
                       text: '${widget.doctor['fee']} DH',
                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -586,21 +586,11 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Voulez-vous confirmer ce rendez-vous?',
-                style: TextStyle(
-                  fontStyle: FontStyle.italic,
-                  color: Colors.grey,
-                ),
-              ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               child: const Text(
                 'Annuler',
                 style: TextStyle(color: Colors.grey),
@@ -608,24 +598,50 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
+                // Create the appointment
+                final appointment = {
+                  'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                  'doctorName': widget.doctor['name'],
+                  'specialty': widget.doctor['speciality'],
+                  'date': DateTime(
+                    2025,
+                    4,
+                    int.parse(_selectedDate),
+                    int.parse(_selectedTime.split(':')[0]),
+                    int.parse(_selectedTime.split(':')[1]),
+                  ),
+                  'status': 'confirmé',
+                  'notes': '',
+                  'location': widget.doctor['location'] ?? 'Cabinet médical',
+                  'address': widget.doctor['address'] ?? '',
+                  'phone': widget.doctor['phone'] ?? '',
+                  'photo': widget.doctor['image'],
+                  'requiredDocs': [
+                    'Carte vitale',
+                    'Pièce d\'identité',
+                  ],
+                  'preparation': '',
+                };
 
-                // Simuler une confirmation
+                // Close the confirmation dialog
+                Navigator.pop(context);
+                
+                // Return to the appointments screen with the new appointment
+                Navigator.pop(context, appointment);
+                
+                // Show success message
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Rendez-vous confirmé avec succès!'),
+                    content: Text('Rendez-vous confirmé avec succès'),
                     backgroundColor: Color(0xFF0D8B8B),
-                    duration: Duration(seconds: 3),
                   ),
                 );
-
-                // Retourner à l'écran principal après confirmation
-                Future.delayed(const Duration(seconds: 2), () {
-                  Navigator.pop(context);
-                });
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D8B8B),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               child: const Text('Confirmer'),
             ),

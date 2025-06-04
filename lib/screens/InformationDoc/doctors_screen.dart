@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'doctor_details_screen.dart';// Importation de la page de détails
 
 
@@ -19,93 +20,41 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
   // Liste de spécialités pour le filtre
   final List<String> _specialities = [
     'Tous',
-    'Cardiologue',
-    'Dermatologue',
-    'Pédiatre',
-    'Psychiatre',
-    'Gynécologue',
-    'Neurologue',
-    'Ophtalmologue',
-    'ORL',
-    'Dentiste'
+    'Médecine générale',
+    'Cardiologie',
+    'Dermatologie',
+    'Pédiatrie',
+    'Psychiatrie',
+    'Gynécologie',
+    'Neurologie',
+    'Ophtalmologie',
+    'ORL'
   ];
 
-  // Liste de médecins (simulation de données)
-  final List<Map<String, dynamic>> _doctors = [
-    {
-      'name': 'Dr. Karim Alami',
-      'speciality': 'Cardiologue',
-      'rating': 4.9,
-      'reviews': 128,
-      'distance': 2.5,
-      'available': true,
-      'fee': 400,
-      'image': 'assets/images/med1.jpg',
-    },
-    {
-      'name': 'Dr. Amina Benali',
-      'speciality': 'Dermatologue',
-      'rating': 4.8,
-      'reviews': 96,
-      'distance': 3.2,
-      'available': true,
-      'fee': 350,
-      'image': 'assets/images/doc8.jpeg',
-    },
-    {
-      'name': 'Dr. Mehdi Rami',
-      'speciality': 'Pédiatre',
-      'rating': 4.7,
-      'reviews': 114,
-      'distance': 1.8,
-      'available': false,
-      'fee': 300,
-      'image': 'assets/images/med2.png',
-    },
-    {
-      'name': 'Dr. Fatima Zahra',
-      'speciality': 'Gynécologue',
-      'rating': 4.9,
-      'reviews': 157,
-      'distance': 4.1,
-      'available': true,
-      'fee': 450,
-      'image': 'assets/images/doc6.jpeg',
-    },
-    {
-      'name': 'Dr. Youssef Tazi',
-      'speciality': 'Neurologue',
-      'rating': 4.6,
-      'reviews': 82,
-      'distance': 3.7,
-      'available': true,
-      'fee': 500,
-      'image': 'assets/images/med3.jpg',
-    },
-    {
-      'name': 'Dr. Salma Idrissi',
-      'speciality': 'Dentiste',
-      'rating': 4.8,
-      'reviews': 135,
-      'distance': 2.2,
-      'available': false,
-      'fee': 380,
-      'image': 'assets/images/doc7.jpeg',
-    },
+  // Liste d'images de profil aléatoires
+  final List<String> _profileImages = [
+    'assets/images/med1.jpg',
+    'assets/images/med2.png',
+    'assets/images/med3.jpg',
+    'assets/images/med4.jpeg',
+    'assets/images/doc5.jpeg',
+    'assets/images/doc6.jpeg',
+    'assets/images/doc7.jpeg',
+    'assets/images/doc8.jpeg',
   ];
 
-  // Liste de médecins filtrée
-  List<Map<String, dynamic>> _filteredDoctors = [];
+  // Stream des médecins filtrés
+  Stream<QuerySnapshot> _getDoctorsStream() {
+    return FirebaseFirestore.instance
+        .collection('doctors')
+        .where('isApproved', isEqualTo: true)
+        .snapshots();
+  }
 
   @override
   void initState() {
     super.initState();
-    _filteredDoctors = List.from(_doctors);
-
-    // Ajouter un écouteur au contrôleur de recherche
-    _searchController.addListener(() {
-      _filterDoctors();
-    });
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
@@ -114,32 +63,28 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
     super.dispose();
   }
 
-  // Fonction pour filtrer les médecins
-  void _filterDoctors() {
-    setState(() {
-      String searchQuery = _searchController.text.toLowerCase();
-
-      _filteredDoctors = _doctors.where((doctor) {
-        // Filtrer par spécialité si une spécialité est sélectionnée
-        bool matchesSpeciality = _selectedSpeciality == 'Tous' ||
-            doctor['speciality'] == _selectedSpeciality;
-
-        // Filtrer par le texte de recherche (nom ou spécialité)
-        bool matchesSearch = searchQuery.isEmpty ||
-            doctor['name'].toLowerCase().contains(searchQuery) ||
-            doctor['speciality'].toLowerCase().contains(searchQuery);
-
-        return matchesSpeciality && matchesSearch;
-      }).toList();
-    });
+  void _onSearchChanged() {
+    setState(() {});
   }
 
-  // Mettre à jour le filtre de spécialité
-  void _updateSpecialityFilter(String speciality) {
-    setState(() {
-      _selectedSpeciality = speciality;
-      _filterDoctors();
-    });
+  // Fonction pour filtrer les médecins
+  List<DocumentSnapshot> _filterDoctors(List<DocumentSnapshot> doctors) {
+    String searchQuery = _searchController.text.toLowerCase();
+
+    return doctors.where((doc) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      
+      // Filtrer par spécialité si une spécialité est sélectionnée
+      bool matchesSpeciality = _selectedSpeciality == 'Tous' ||
+          data['specialite'] == _selectedSpeciality;
+
+      // Filtrer par le texte de recherche (nom, prénom ou spécialité)
+      bool matchesSearch = searchQuery.isEmpty ||
+          '${data['prenom']} ${data['nom']}'.toLowerCase().contains(searchQuery) ||
+          data['specialite'].toString().toLowerCase().contains(searchQuery);
+
+      return matchesSpeciality && matchesSearch;
+    }).toList();
   }
 
   @override
@@ -161,7 +106,6 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
           IconButton(
             icon: const Icon(Icons.tune, color: Color(0xFF0D8B8B)),
             onPressed: () {
-              // Afficher les options de filtrage avancées
               _showFilterOptions(context);
             },
           ),
@@ -209,7 +153,9 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                           selected: isSelected,
                           onSelected: (selected) {
                             if (selected) {
-                              _updateSpecialityFilter(speciality);
+                              setState(() {
+                                _selectedSpeciality = speciality;
+                              });
                             }
                           },
                           backgroundColor: Colors.grey.shade100,
@@ -227,54 +173,41 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
             ),
           ),
 
-          // Nombre de résultats
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${_filteredDoctors.length} médecins trouvés',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Text(
-                      'Trier par: ',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Popularité',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0D8B8B),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.arrow_drop_down,
-                      color: Color(0xFF0D8B8B),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
           // Liste des médecins
           Expanded(
-            child: _filteredDoctors.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _filteredDoctors.length,
-              itemBuilder: (context, index) {
-                final doctor = _filteredDoctors[index];
-                return _buildDoctorCard(doctor);
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _getDoctorsStream(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Erreur: ${snapshot.error}'),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF0D8B8B),
+                    ),
+                  );
+                }
+
+                List<DocumentSnapshot> filteredDoctors = _filterDoctors(snapshot.data!.docs);
+
+                if (filteredDoctors.isEmpty) {
+                  return _buildEmptyState();
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredDoctors.length,
+                  itemBuilder: (context, index) {
+                    Map<String, dynamic> doctorData = filteredDoctors[index].data() as Map<String, dynamic>;
+                    // Assigner une image aléatoire au médecin
+                    String randomImage = _profileImages[index % _profileImages.length];
+                    return _buildDoctorCard(doctorData, randomImage);
+                  },
+                );
               },
             ),
           ),
@@ -283,40 +216,31 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
     );
   }
 
-  // État vide (aucun médecin trouvé)
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.search_off,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Aucun médecin trouvé',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Essayez de modifier vos critères de recherche',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildDoctorCard(Map<String, dynamic> doctor, String imageAsset) {
+    // Calculer une note aléatoire entre 4.0 et 5.0
+    double rating = 4.0 + (DateTime.now().millisecondsSinceEpoch % 10) / 10;
+    // Générer un nombre aléatoire d'avis entre 50 et 200
+    int reviews = 50 + (DateTime.now().millisecondsSinceEpoch % 150);
+    // Générer un tarif aléatoire entre 300 et 600 DH
+    int fee = 300 + (DateTime.now().millisecondsSinceEpoch % 300);
+    // Générer une distance aléatoire entre 1 et 10 km
+    double distance = 1.0 + (DateTime.now().millisecondsSinceEpoch % 90) / 10;
 
-  // Carte affichant les informations d'un médecin
-  Widget _buildDoctorCard(Map<String, dynamic> doctor) {
+    Map<String, dynamic> doctorDetails = {
+      ...doctor,
+      'name': '${doctor['titre']} ${doctor['prenom']} ${doctor['nom']}',
+      'speciality': doctor['specialite'],
+      'rating': rating,
+      'reviews': reviews,
+      'fee': fee,
+      'distance': distance,
+      'available': true,
+      'image': imageAsset,
+      'location': 'Cabinet médical - ${doctor['ville']}',
+      'phone': doctor['telephoneCabinet'],
+      'address': doctor['ville'],
+    };
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -348,9 +272,8 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: doctor['image'] != null
-                        ? Image.asset(
-                      doctor['image'],
+                    child: Image.asset(
+                      imageAsset,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
                         return const Icon(
@@ -359,11 +282,6 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                           color: Colors.white,
                         );
                       },
-                    )
-                        : const Icon(
-                      Icons.person,
-                      size: 50,
-                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -376,7 +294,7 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        doctor['name'],
+                        doctorDetails['name'],
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -384,7 +302,7 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        doctor['speciality'],
+                        doctorDetails['speciality'],
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 14,
@@ -393,7 +311,6 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          // Évaluation
                           const Icon(
                             Icons.star,
                             color: Colors.amber,
@@ -401,23 +318,20 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            doctor['rating'].toString(),
+                            rating.toStringAsFixed(1),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '(${doctor['reviews']} avis)',
+                            '($reviews avis)',
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 12,
                             ),
                           ),
-
                           const SizedBox(width: 12),
-
-                          // Distance
                           const Icon(
                             Icons.location_on,
                             color: Color(0xFF0D8B8B),
@@ -425,7 +339,7 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${doctor['distance']} km',
+                            '${distance.toStringAsFixed(1)} km',
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 12,
@@ -441,15 +355,13 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: doctor['available']
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.red.withOpacity(0.1),
+                    color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    doctor['available'] ? 'Disponible' : 'Occupé',
+                  child: const Text(
+                    'Disponible',
                     style: TextStyle(
-                      color: doctor['available'] ? Colors.green : Colors.red,
+                      color: Colors.green,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -483,7 +395,7 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                       ),
                     ),
                     Text(
-                      '${doctor['fee']} DH',
+                      '$fee DH',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -496,8 +408,12 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                 // Bouton de prise de rendez-vous
                 ElevatedButton(
                   onPressed: () {
-                    // Navigation vers la page de détail du médecin
-                    _navigateToDoctorDetails(context, doctor);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DoctorDetailsScreen(doctor: doctorDetails),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0D8B8B),
@@ -516,7 +432,38 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
     );
   }
 
-  // Dialogue des options de filtrage
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 60,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Aucun médecin trouvé',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Essayez de modifier vos critères de recherche',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showFilterOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -570,46 +517,6 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
                 onChanged: (value) {},
               ),
 
-              const SizedBox(height: 16),
-
-              const Text(
-                'Disponibilité',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  FilterChip(
-                    label: const Text('Aujourd\'hui'),
-                    selected: true,
-                    onSelected: (bool selected) {},
-                    backgroundColor: Colors.grey.shade100,
-                    selectedColor: const Color(0xFF0D8B8B).withOpacity(0.2),
-                    labelStyle: const TextStyle(
-                      color: Color(0xFF0D8B8B),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilterChip(
-                    label: const Text('Demain'),
-                    selected: false,
-                    onSelected: (bool selected) {},
-                    backgroundColor: Colors.grey.shade100,
-                  ),
-                  const SizedBox(width: 8),
-                  FilterChip(
-                    label: const Text('Cette semaine'),
-                    selected: false,
-                    onSelected: (bool selected) {},
-                    backgroundColor: Colors.grey.shade100,
-                  ),
-                ],
-              ),
-
               const SizedBox(height: 20),
 
               // Bouton Appliquer
@@ -639,16 +546,6 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
           ),
         );
       },
-    );
-  }
-
-  // Naviguer vers la page de détails du médecin
-  void _navigateToDoctorDetails(BuildContext context, Map<String, dynamic> doctor) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DoctorDetailsScreen(doctor: doctor),
-      ),
     );
   }
 }

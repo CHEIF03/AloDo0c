@@ -43,7 +43,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
     });
 
     try {
-      // Tentative de connexion
+      // Tentative  de connexion
       final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
