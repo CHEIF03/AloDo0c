@@ -15,6 +15,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _resetEmailController = TextEditingController();
   final _auth = FirebaseAuth.instance;
   final _googleSignIn = GoogleSignIn();
   
@@ -26,6 +27,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _resetEmailController.dispose();
     super.dispose();
   }
 
@@ -139,6 +141,112 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
     }
   }
 
+  // Fonction pour gérer le mot de passe oublié
+  Future<void> _handleForgotPassword() async {
+    _resetEmailController.text = _emailController.text; // Pré-remplir avec l'email actuel
+
+    // Afficher une boîte de dialogue pour saisir l'email
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Réinitialiser le mot de passe'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Entrez votre adresse e-mail pour recevoir un lien de réinitialisation.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _resetEmailController,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                hintText: 'Votre adresse email',
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0D8B8B),
+            ),
+            child: const Text('Envoyer'),
+          ),
+        ],
+      ),
+    );
+
+    // Si l'utilisateur a confirmé
+    if (result == true && _resetEmailController.text.isNotEmpty) {
+      try {
+        setState(() {
+          _isLoading = true;
+          _errorMessage = null;
+        });
+
+        await _auth.sendPasswordResetEmail(email: _resetEmailController.text.trim());
+
+        if (mounted) {
+          // Afficher un message de succès
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Un email de réinitialisation a été envoyé à votre adresse.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        setState(() {
+          _errorMessage = _getErrorMessage(e.code);
+        });
+        // Afficher l'erreur dans un SnackBar
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_errorMessage ?? 'Une erreur est survenue'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        setState(() {
+          _errorMessage = 'Une erreur est survenue. Veuillez réessayer.';
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Une erreur est survenue. Veuillez réessayer.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
   String _getErrorMessage(String code) {
     switch (code) {
       case 'user-not-found':
@@ -150,9 +258,11 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
       case 'user-disabled':
         return 'Ce compte a été désactivé.';
       case 'too-many-requests':
-        return 'Trop de tentatives de connexion. Veuillez réessayer plus tard.';
+        return 'Trop de tentatives. Veuillez réessayer plus tard.';
       case 'operation-not-allowed':
-        return 'La connexion avec email/mot de passe n\'est pas activée.';
+        return 'Cette opération n\'est pas autorisée.';
+      case 'email-already-in-use':
+        return 'Cet email est déjà utilisé par un autre compte.';
       case 'network-request-failed':
         return 'Erreur de connexion réseau. Vérifiez votre connexion internet.';
       case 'invalid-credential':
@@ -274,9 +384,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {
-                        // Logique pour mot de passe oublié
-                      },
+                      onPressed: _isLoading ? null : _handleForgotPassword,
                       child: const Text(
                         'Mot de passe oublié ?',
                         style: TextStyle(

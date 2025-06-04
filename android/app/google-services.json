@@ -12,7 +12,20 @@
           "package_name": "com.alodoc"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "42140892607-YOUR_CLIENT_ID.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.alodoc",
+            "certificate_hash": "YOUR_SHA1_HASH"
+          }
+        },
+        {
+          "client_id": "42140892607-YOUR_WEB_CLIENT_ID.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyB1sYNLggu2MAqi6aOpsVY1LeeLFzFM1ug"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "42140892607-YOUR_WEB_CLIENT_ID.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
