@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Importation des pages pour chaque onglet
 import 'InformationDoc/doctors_screen.dart';  // Assurez-vous que ce chemin est correct
 import 'InforamtionPatient/patient_profile_screen.dart'; // Profile de Patient
 import 'rdv/appointments_screen.dart';
+import 'InformationDoc/doctor_details_screen.dart';  // Corrected import path
 
 
 
@@ -101,6 +103,18 @@ class _HomeScreenState extends State<HomeScreen> {
 // Page d'accueil (premier onglet)
 class HomeTab extends StatelessWidget {
   const HomeTab({Key? key}) : super(key: key);
+
+  // Liste d'images de profil aléatoires
+  static const List<String> _profileImages = [
+    'assets/images/med1.jpg',
+    'assets/images/med2.png',
+    'assets/images/med3.jpg',
+    'assets/images/med4.jpeg',
+    'assets/images/doc5.jpeg',
+    'assets/images/doc6.jpeg',
+    'assets/images/doc7.jpeg',
+    'assets/images/doc8.jpeg',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -217,6 +231,12 @@ class HomeTab extends StatelessWidget {
               TextButton(
                 onPressed: () {
                   // Naviguer vers l'onglet médecins
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DoctorsScreen(),
+                    ),
+                  );
                 },
                 child: const Text(
                   'Voir tous',
@@ -230,28 +250,58 @@ class HomeTab extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          // Liste de médecins
+          // Liste de médecins populaires depuis Firebase
           SizedBox(
             height: 200,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                _buildDoctorCard(
-                  name: 'Dr. Karim Alami',
-                  speciality: 'Cardiologue',
-                  rating: 4.9,
-                ),
-                _buildDoctorCard(
-                  name: 'Dr. Amina Benali',
-                  speciality: 'Dermatologue',
-                  rating: 4.8,
-                ),
-                _buildDoctorCard(
-                  name: 'Dr. Mehdi Rami',
-                  speciality: 'Pédiatre',
-                  rating: 4.7,
-                ),
-              ],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('doctors')
+                  .where('isApproved', isEqualTo: true)
+                  .where('isPopulaire', isEqualTo: true)
+                  .limit(5)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Erreur: ${snapshot.error}'),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF0D8B8B),
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text('Aucun médecin populaire trouvé'),
+                  );
+                }
+
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    final doctor = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                    // Assigner une image aléatoire au médecin
+                    String randomImage = _profileImages[index % _profileImages.length];
+                    // Calculer une note aléatoire entre 4.0 et 5.0
+                    double rating = 4.0 + (index % 10) / 10;
+
+                    return _buildDoctorCard(
+                      name: '${doctor['titre']} ${doctor['prenom']} ${doctor['nom']}',
+                      speciality: doctor['specialite'],
+                      rating: rating,
+                      image: randomImage,
+                      doctor: doctor,
+                      context: context,
+                    );
+                  },
+                );
+              },
             ),
           ),
 
@@ -336,11 +386,14 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  // Widget pour les cartes de médecin
+  // Widget modifié pour les cartes de médecin
   Widget _buildDoctorCard({
     required String name,
     required String speciality,
     required double rating,
+    required String image,
+    required Map<String, dynamic> doctor,
+    required BuildContext context,
   }) {
     return Container(
       width: 160,
@@ -359,13 +412,15 @@ class HomeTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 35,
-            backgroundColor: Colors.grey[300],
-            child: const Icon(
-              Icons.person,
-              size: 40,
-              color: Colors.white,
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              image: DecorationImage(
+                image: AssetImage(image),
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -373,8 +428,10 @@ class HomeTab extends StatelessWidget {
             name,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 14,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 5),
@@ -382,8 +439,9 @@ class HomeTab extends StatelessWidget {
             speciality,
             style: TextStyle(
               color: Colors.grey[600],
-              fontSize: 14,
+              fontSize: 12,
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 5),
           Row(
@@ -392,13 +450,14 @@ class HomeTab extends StatelessWidget {
               const Icon(
                 Icons.star,
                 color: Colors.amber,
-                size: 18,
+                size: 16,
               ),
               const SizedBox(width: 4),
               Text(
-                rating.toString(),
+                rating.toStringAsFixed(1),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
+                  fontSize: 12,
                 ),
               ),
             ],
@@ -406,7 +465,26 @@ class HomeTab extends StatelessWidget {
           const SizedBox(height: 10),
           ElevatedButton(
             onPressed: () {
-              // Prendre RDV
+              // Préparer les détails du médecin pour la navigation
+              Map<String, dynamic> doctorDetails = {
+                ...doctor,
+                'name': name,
+                'speciality': speciality,
+                'rating': rating,
+                'image': image,
+                'reviews': 50 + (DateTime.now().millisecondsSinceEpoch % 150),
+                'fee': 300 + (DateTime.now().millisecondsSinceEpoch % 300),
+                'distance': 1.0 + (DateTime.now().millisecondsSinceEpoch % 90) / 10,
+                'available': true,
+                'location': 'Cabinet médical - ${doctor['ville']}',
+              };
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DoctorDetailsScreen(doctor: doctorDetails),
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0D8B8B),
