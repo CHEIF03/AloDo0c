@@ -1,47 +1,65 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
+val flutterRoot = localProperties.getProperty("flutter.sdk")
+    ?: error("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
+
+val flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "1"
+val flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0"
+
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id("dev.flutter.flutter-gradle-plugin")
+    kotlin("android")
     id("com.google.gms.google-services")
+    id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.alodoc"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    compileSdk = 34  // Updated to latest stable Android SDK
+    ndkVersion = "25.1.8937393"  // Updated NDK version
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = "1.8"
+    }
+
+    sourceSets {
+        getByName("main").java.srcDirs("src/main/kotlin")
     }
 
     defaultConfig {
         applicationId = "com.alodoc"
-        minSdk = 21  // Required for Firebase
-        targetSdk = flutter.targetSdkVersion
-        versionCode = 1
-        versionName = "1.0"
+        minSdk = 21  // Updated for Firebase
+        targetSdk = 34  // Updated to match compileSdk
+        versionCode = flutterVersionCode.toInt()
+        versionName = flutterVersionName
         multiDexEnabled = true
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
 
 dependencies {
-    // Import the Firebase BoM
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:${property("kotlin_version")}")
     implementation(platform("com.google.firebase:firebase-bom:32.7.4"))
-    implementation("androidx.multidex:multidex:2.0.1")
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+    implementation("com.android.support:multidex:1.0.3")
 }
 
 flutter {

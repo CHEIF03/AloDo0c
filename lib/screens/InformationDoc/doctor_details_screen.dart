@@ -658,6 +658,21 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                     return;
                   }
 
+                  // Get doctor's data from doctors collection if needed
+                  String doctorPhone = widget.doctor['phone'] ?? '';
+                  if (doctorPhone.isEmpty && widget.doctor['id'] != null) {
+                    try {
+                      final doctorDoc = await _firestore.collection('doctors').doc(widget.doctor['id']).get();
+                      if (doctorDoc.exists) {
+                        final doctorData = doctorDoc.data() as Map<String, dynamic>;
+                        doctorPhone = doctorData['telephoneCabinet'] ?? doctorData['telephoneMobile'] ?? '0522255646';
+                      }
+                    } catch (e) {
+                      print('Error fetching doctor data: $e');
+                      doctorPhone = '0522255646'; // Default number if fetch fails
+                    }
+                  }
+
                   // Create appointment data
                   final appointmentData = {
                     'address': widget.doctor['address'] ?? 'Sidi Kacem',
@@ -673,7 +688,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                     'patientId': currentUser.uid,
                     'patientName': '${userData['prenom']} ${userData['nom']}',
                     'patientPhone': userData['telephone'],
-                    'phone': widget.doctor['phone'] ?? '0522255646',
+                    'phone': doctorPhone, // Using the fetched or default phone number
                     'photo': widget.doctor['image'] ?? 'assets/images/med1.jpg',
                     'preparation': '',
                     'requiredDocs': [

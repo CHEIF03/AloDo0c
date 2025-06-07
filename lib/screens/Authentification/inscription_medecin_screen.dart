@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
-//TEST
+//TES
 class InscriptionMedecinScreen extends StatefulWidget {
   const InscriptionMedecinScreen({Key? key}) : super(key: key);
 

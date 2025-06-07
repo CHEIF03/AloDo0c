@@ -3,6 +3,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 // Importation des pages pour chaque onglet
 import 'InformationDoc/doctors_screen.dart';  // Assurez-vous que ce chemin est correct
@@ -631,6 +633,40 @@ class HomeTab extends StatelessWidget {
 class AppointmentsTab extends StatelessWidget {
   const AppointmentsTab({Key? key}) : super(key: key);
 
+  // Function to make a phone call
+  Future<void> _makePhoneCall(BuildContext context, String phoneNumber) async {
+    // Format the phone number to remove any spaces or special characters
+    final formattedNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: formattedNumber,
+    );
+    
+    try {
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Impossible d\'appeler le numéro: $formattedNumber'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l\'appel: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -890,8 +926,42 @@ class AppointmentsTab extends StatelessWidget {
                           _buildActionButton(
                             icon: Icons.phone,
                             label: 'Appeler',
-                            onPressed: () {
-                              // Implémenter l'appel
+                            onPressed: () async {
+                              final phoneNumber = appointment['phone'];
+                              if (phoneNumber == null || phoneNumber.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Numéro de téléphone non disponible'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // Show the phone number in a dialog before making the call
+                              final shouldCall = await showDialog<bool>(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: const Text('Appeler le médecin'),
+                                    content: Text('Voulez-vous appeler le $phoneNumber ?'),
+                                    actions: <Widget>[
+                                      TextButton(
+                                        child: const Text('Annuler'),
+                                        onPressed: () => Navigator.of(context).pop(false),
+                                      ),
+                                      TextButton(
+                                        child: const Text('Appeler'),
+                                        onPressed: () => Navigator.of(context).pop(true),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+
+                              if (shouldCall == true && context.mounted) {
+                                await _makePhoneCall(context, phoneNumber);
+                              }
                             },
                           ),
                           _buildActionButton(
