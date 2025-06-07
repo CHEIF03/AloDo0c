@@ -5,16 +5,48 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:intl/intl.dart';
 
-// Importation des pages pour chaque onglet
-import 'InformationDoc/doctors_screen.dart';  // Assurez-vous que ce chemin est correct
-import 'InforamtionPatient/patient_profile_screen.dart'; // Profile de Patient
+// Import components
+import 'home/home_tab.dart';
+import 'InformationDoc/doctors_screen.dart';
 import 'rdv/appointments_screen.dart';
-import 'InformationDoc/doctor_details_screen.dart';  // Corrected import path
 import 'chat/chat_screen.dart';
+import 'InforamtionPatient/patient_profile_screen.dart';
+import 'widgets/alodoc_logo.dart';
 
+// Widget pour le logo AloDoc
+class AloDocLogo extends StatelessWidget {
+  final double height;
 
+  const AloDocLogo({Key? key, this.height = 80}) : super(key: key);
 
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/images/logo_doc.png',
+      height: height,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          height: height,
+          padding: const EdgeInsets.all(8),
+          child: const Center(
+            child: Text(
+              'AloDoc',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0D8B8B),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// Main HomeScreen widget
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
@@ -25,12 +57,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  // Définition de la liste des pages
   final List<Widget> _pages = [
     const HomeTab(),           // Page d'accueil
-    const DoctorsScreen(),     // Page des médecins - importée depuis doctors_screen.dart
+    const DoctorsScreen(),     // Page des médecins
     const AppointmentsTab(),   // Page des rendez-vous
-    const MessagesTab(), // Page des messages
+    const MessagesTab(),       // Page des messages
     const PatientProfileScreen() // Profile de Patient
   ];
 
@@ -53,7 +84,6 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.person_outline, color: Color(0xFF0D8B8B)),
             onPressed: () {
-              // Navigation vers l'écran de profil patient
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -64,14 +94,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      // Utiliser l'index pour afficher la page sélectionnée
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
-            print("Navigating to tab $index"); // Pour déboguer
+            print("Navigating to tab $index");
           });
         },
         selectedItemColor: const Color(0xFF0D8B8B),
@@ -984,15 +1013,171 @@ class AppointmentsTab extends StatelessWidget {
                           _buildActionButton(
                             icon: Icons.calendar_today,
                             label: 'Reprogrammer',
-                            onPressed: () {
-                              // Implémenter la reprogrammation
+                            onPressed: () async {
+                              // Show date picker
+                              final DateTime? pickedDate = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now().add(const Duration(days: 1)),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                        primary: Color(0xFF0D8B8B),
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+
+                              if (pickedDate != null && context.mounted) {
+                                // Show time picker
+                                final TimeOfDay? pickedTime = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay.now(),
+                                  builder: (context, child) {
+                                    return Theme(
+                                      data: Theme.of(context).copyWith(
+                                        colorScheme: const ColorScheme.light(
+                                          primary: Color(0xFF0D8B8B),
+                                        ),
+                                      ),
+                                      child: child!,
+                                    );
+                                  },
+                                );
+
+                                if (pickedTime != null && context.mounted) {
+                                  // Combine date and time
+                                  final DateTime newDateTime = DateTime(
+                                    pickedDate.year,
+                                    pickedDate.month,
+                                    pickedDate.day,
+                                    pickedTime.hour,
+                                    pickedTime.minute,
+                                  );
+
+                                  // Show confirmation dialog
+                                  final bool? shouldReschedule = await showDialog<bool>(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: const Text('Confirmer la reprogrammation'),
+                                        content: Text(
+                                          'Voulez-vous reprogrammer ce rendez-vous pour le ${DateFormat('dd/MM/yyyy à HH:mm').format(newDateTime)} ?'
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, false),
+                                            child: const Text('Annuler'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, true),
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: const Color(0xFF0D8B8B),
+                                            ),
+                                            child: const Text('Confirmer'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+
+                                  if (shouldReschedule == true && context.mounted) {
+                                    try {
+                                      // Update the appointment in Firestore
+                                      await FirebaseFirestore.instance
+                                          .collection('appointments')
+                                          .doc(appointment['id'])
+                                          .update({
+                                        'date': Timestamp.fromDate(newDateTime),
+                                        'status': 'confirmé',
+                                        'rescheduledAt': FieldValue.serverTimestamp(),
+                                      });
+
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Rendez-vous reprogrammé avec succès'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Erreur lors de la reprogrammation: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  }
+                                }
+                              }
                             },
                           ),
                           _buildActionButton(
                             icon: Icons.cancel,
                             label: 'Annuler',
-                            onPressed: () {
-                              // Implémenter l'annulation
+                            onPressed: () async {
+                              // Show confirmation dialog
+                              final shouldCancel = await showDialog<bool>(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: const Text('Annuler le rendez-vous'),
+                                    content: const Text('Êtes-vous sûr de vouloir annuler ce rendez-vous ?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, false),
+                                        child: const Text('Non'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, true),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                        ),
+                                        child: const Text('Oui, annuler'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+
+                              if (shouldCancel == true) {
+                                try {
+                                  // Update the appointment status in Firestore
+                                  await FirebaseFirestore.instance
+                                      .collection('appointments')
+                                      .doc(appointment['id'])
+                                      .update({
+                                    'status': 'annulé',
+                                    'canceledAt': FieldValue.serverTimestamp(),
+                                  });
+
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Rendez-vous annulé avec succès'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Erreur lors de l\'annulation: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
                             },
                           ),
                         ],
@@ -1058,67 +1243,308 @@ class MessagesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.message,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Messages',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0D8B8B),
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.message_outlined,
+              size: 80,
+              color: Colors.grey[400],
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              'Communiquez facilement avec vos médecins',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Widget pour le logo AloDoc
-class AloDocLogo extends StatelessWidget {
-  final double height;
-
-  const AloDocLogo({Key? key, this.height = 80}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/images/logo_doc.png',
-      height: height,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          height: height,
-          padding: const EdgeInsets.all(8),
-          child: const Center(
-            child: Text(
-              'AloDoc',
+            const SizedBox(height: 16),
+            const Text(
+              'Connectez-vous pour voir vos messages',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF0D8B8B),
               ),
             ),
-          ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/login');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D8B8B),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text('Se connecter'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('appointments')
+          .where('patientId', isEqualTo: currentUser.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Erreur: ${snapshot.error}'),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF0D8B8B),
+            ),
+          );
+        }
+
+        final appointments = snapshot.data?.docs ?? [];
+        
+        // Sort appointments in memory instead of in the query
+        appointments.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aDate = (aData['date'] as Timestamp).toDate();
+          final bDate = (bData['date'] as Timestamp).toDate();
+          return bDate.compareTo(aDate); // Descending order
+        });
+
+        if (appointments.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.message_outlined,
+                  size: 80,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Aucun message',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0D8B8B),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Vos conversations avec les médecins apparaîtront ici',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: appointments.length,
+          itemBuilder: (context, index) {
+            final appointment = appointments[index].data() as Map<String, dynamic>;
+            final appointmentId = appointments[index].id;
+            final appointmentDate = (appointment['date'] as Timestamp).toDate();
+
+            return FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('appointments')
+                  .doc(appointmentId)
+                  .collection('messages')
+                  .orderBy('timestamp', descending: true)
+                  .limit(1)
+                  .get(),
+              builder: (context, messagesSnapshot) {
+                final lastMessage = messagesSnapshot.data?.docs.isNotEmpty == true
+                    ? messagesSnapshot.data!.docs.first.data() as Map<String, dynamic>
+                    : null;
+                final lastMessageTime = lastMessage?['timestamp'] as Timestamp?;
+
+                return Card(
+                  elevation: 0,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: InkWell(
+                    onTap: appointment['status'] == 'annulé' 
+                        ? null // Disable tap for cancelled appointments
+                        : () {
+                            final doctorDetails = {
+                              'id': appointment['doctorId'],
+                              'name': appointment['doctorName'],
+                              'speciality': appointment['specialty'],
+                              'photo': appointment['photo'],
+                            };
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ChatScreen(
+                                  doctor: doctorDetails,
+                                  appointmentId: appointmentId,
+                                ),
+                              ),
+                            );
+                          },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: appointment['status'] == 'annulé'
+                                    ? Colors.grey[300]
+                                    : const Color(0xFF0D8B8B).withOpacity(0.1),
+                                child: Icon(
+                                  Icons.person,
+                                  color: appointment['status'] == 'annulé'
+                                      ? Colors.grey
+                                      : const Color(0xFF0D8B8B),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      appointment['doctorName'] ?? 'Médecin',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: appointment['status'] == 'annulé'
+                                            ? Colors.grey
+                                            : Colors.black,
+                                      ),
+                                    ),
+                                    Text(
+                                      appointment['specialty'] ?? 'Spécialité non spécifiée',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (lastMessageTime != null && appointment['status'] != 'annulé')
+                                Text(
+                                  DateFormat('HH:mm').format(lastMessageTime.toDate()),
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: appointment['status'] == 'annulé'
+                                      ? Colors.red.withOpacity(0.1)
+                                      : const Color(0xFF0D8B8B).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'RDV le ${DateFormat('dd/MM/yyyy à HH:mm').format(appointmentDate)}',
+                                  style: TextStyle(
+                                    color: appointment['status'] == 'annulé'
+                                        ? Colors.red
+                                        : const Color(0xFF0D8B8B),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              if (appointment['status'] == 'annulé') ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.cancel_outlined,
+                                        color: Colors.red,
+                                        size: 14,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Annulé',
+                                        style: TextStyle(
+                                          color: Colors.red,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (appointment['status'] != 'annulé') ...[
+                            if (lastMessage != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                lastMessage['text'] as String? ?? '',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                            if (messagesSnapshot.data?.docs.isEmpty ?? true) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Aucun message - Démarrer la conversation',
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 14,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ] else ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'La messagerie n\'est plus disponible pour ce rendez-vous',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
         );
       },
     );
