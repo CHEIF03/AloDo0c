@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // Importation des pages pour chaque onglet
 import 'InformationDoc/doctors_screen.dart';  // Assurez-vous que ce chemin est correct
@@ -632,56 +633,330 @@ class AppointmentsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.calendar_today,
-            size: 80,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Vos rendez-vous',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+    final FirebaseAuth _auth = FirebaseAuth.instance;
+    final User? currentUser = _auth.currentUser;
+
+    if (currentUser == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.calendar_today,
+              size: 80,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Connectez-vous pour voir vos rendez-vous',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0D8B8B),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/login');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D8B8B),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text('Se connecter'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('appointments')
+          .where('patientId', isEqualTo: currentUser.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Erreur: ${snapshot.error}'),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
               color: Color(0xFF0D8B8B),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              'Consultez et gérez tous vos rendez-vous médicaux',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
-          const SizedBox(height: 32), // Espace avant le bouton
-          ElevatedButton.icon(
-            onPressed: () {
-              // Navigation vers l'écran des rendez-vous
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AppointmentsScreen(),
+          );
+        }
+
+        final appointments = snapshot.data?.docs ?? [];
+        
+        // Sort appointments in memory instead of in the query
+        appointments.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aDate = (aData['date'] as Timestamp).toDate();
+          final bDate = (bData['date'] as Timestamp).toDate();
+          return aDate.compareTo(bDate);
+        });
+
+        if (appointments.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 80,
+                  color: Colors.grey[400],
                 ),
-              );
-            },
-            icon: const Icon(Icons.calendar_month),
-            label: const Text('Voir mes rendez-vous'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0D8B8B),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                const SizedBox(height: 16),
+                const Text(
+                  'Aucun rendez-vous',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0D8B8B),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Vous n\'avez pas encore de rendez-vous programmé',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DoctorsScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Prendre un rendez-vous'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D8B8B),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: appointments.length,
+          itemBuilder: (context, index) {
+            final appointment = appointments[index].data() as Map<String, dynamic>;
+            final appointmentDate = appointment['date'] as Timestamp;
+            final date = appointmentDate.toDate();
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
               ),
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 25,
+                          backgroundColor: const Color(0xFF0D8B8B).withOpacity(0.1),
+                          child: const Icon(
+                            Icons.medical_services,
+                            color: Color(0xFF0D8B8B),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                appointment['doctorName'] ?? 'Médecin non spécifié',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Text(
+                                appointment['specialty'] ?? 'Spécialité non spécifiée',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(appointment['status']).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            appointment['status'] ?? 'En attente',
+                            style: TextStyle(
+                              color: _getStatusColor(appointment['status']),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: Color(0xFF0D8B8B),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${date.day}/${date.month}/${date.year}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        const Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: Color(0xFF0D8B8B),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${date.hour}:${date.minute.toString().padLeft(2, '0')}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          size: 16,
+                          color: Color(0xFF0D8B8B),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            appointment['location'] ?? 'Emplacement non spécifié',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (appointment['status'] == 'confirmé') ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildActionButton(
+                            icon: Icons.message,
+                            label: 'Message',
+                            onPressed: () {
+                              // Implémenter la messagerie
+                            },
+                          ),
+                          _buildActionButton(
+                            icon: Icons.phone,
+                            label: 'Appeler',
+                            onPressed: () {
+                              // Implémenter l'appel
+                            },
+                          ),
+                          _buildActionButton(
+                            icon: Icons.calendar_today,
+                            label: 'Reprogrammer',
+                            onPressed: () {
+                              // Implémenter la reprogrammation
+                            },
+                          ),
+                          _buildActionButton(
+                            icon: Icons.cancel,
+                            label: 'Annuler',
+                            onPressed: () {
+                              // Implémenter l'annulation
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'confirmé':
+        return Colors.green;
+      case 'en attente':
+        return Colors.orange;
+      case 'annulé':
+        return Colors.red;
+      case 'terminé':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: const Color(0xFF0D8B8B),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF0D8B8B),
             ),
           ),
         ],

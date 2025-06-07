@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DoctorDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> doctor;
@@ -10,6 +12,10 @@ class DoctorDetailsScreen extends StatefulWidget {
 }
 
 class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
+  // Firebase instances
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   // Variables pour gérer la sélection du jour et de l'heure
   String _selectedDay = 'Lun';
   String _selectedDate = '24';
@@ -573,19 +579,6 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(color: Colors.black, fontSize: 16),
-                  children: [
-                    const TextSpan(text: 'Tarif: '),
-                    TextSpan(
-                      text: '${widget.doctor['fee']} DH',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
           actions: [
@@ -597,53 +590,147 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
-                // Create the appointment
-                final appointment = {
-                  'id': DateTime.now().millisecondsSinceEpoch.toString(),
-                  'doctorName': widget.doctor['name'],
-                  'specialty': widget.doctor['speciality'],
-                  'date': DateTime(
+              onPressed: () async {
+                try {
+                  // Get current user
+                  final User? currentUser = _auth.currentUser;
+                  if (currentUser == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Veuillez vous connecter pour prendre un rendez-vous'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  // Get user data
+                  final userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+                  if (!userDoc.exists) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Données utilisateur non trouvées'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  final userData = userDoc.data() as Map<String, dynamic>;
+
+                  // Create the appointment date
+                  final appointmentDateTime = DateTime(
                     2025,
                     4,
                     int.parse(_selectedDate),
                     int.parse(_selectedTime.split(':')[0]),
                     int.parse(_selectedTime.split(':')[1]),
-                  ),
-                  'status': 'confirmé',
-                  'notes': '',
-                  'location': widget.doctor['location'] ?? 'Cabinet médical',
-                  'address': widget.doctor['address'] ?? '',
-                  'phone': widget.doctor['phone'] ?? '',
-                  'photo': widget.doctor['image'],
-                  'requiredDocs': [
-                    'Carte vitale',
-                    'Pièce d\'identité',
-                  ],
-                  'preparation': '',
-                };
+                  );
 
-                // Close the confirmation dialog
-                Navigator.pop(context);
-                
-                // Return to the appointments screen with the new appointment
-                Navigator.pop(context, appointment);
-                
-                // Show success message
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Rendez-vous confirmé avec succès'),
-                    backgroundColor: Color(0xFF0D8B8B),
-                  ),
-                );
+                  // Check if the appointment slot is available
+                  final existingAppointments = await _firestore
+                      .collection('appointments')
+                      .where('doctorId', isEqualTo: widget.doctor['id'])
+                      .get();
+
+                  // Check for time slot conflicts in memory instead of in the query
+                  final hasConflict = existingAppointments.docs.any((doc) {
+                    final appointmentData = doc.data();
+                    final existingDate = (appointmentData['date'] as Timestamp).toDate();
+                    
+                    // Check if the dates match exactly
+                    return existingDate.year == appointmentDateTime.year &&
+                           existingDate.month == appointmentDateTime.month &&
+                           existingDate.day == appointmentDateTime.day &&
+                           existingDate.hour == appointmentDateTime.hour &&
+                           existingDate.minute == appointmentDateTime.minute;
+                  });
+
+                  if (hasConflict) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Ce créneau horaire n\'est plus disponible'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+
+                  // Create appointment data
+                  final appointmentData = {
+                    'address': widget.doctor['address'] ?? 'Sidi Kacem',
+                    'createdAt': FieldValue.serverTimestamp(),
+                    'date': Timestamp.fromDate(appointmentDateTime),
+                    'dateTime': appointmentDateTime.millisecondsSinceEpoch,
+                    'doctorId': widget.doctor['id'] ?? null,
+                    'doctorName': widget.doctor['name'],
+                    'id': '', // Will be updated after document creation
+                    'location': widget.doctor['location'] ?? 'Cabinet médical - Sidi Kacem',
+                    'notes': '',
+                    'patientEmail': userData['email'],
+                    'patientId': currentUser.uid,
+                    'patientName': '${userData['prenom']} ${userData['nom']}',
+                    'patientPhone': userData['telephone'],
+                    'phone': widget.doctor['phone'] ?? '0522255646',
+                    'photo': widget.doctor['image'] ?? 'assets/images/med1.jpg',
+                    'preparation': '',
+                    'requiredDocs': [
+                      'Carte vitale',
+                      'Pièce d\'identité'
+                    ],
+                    'specialty': widget.doctor['speciality'],
+                    'status': 'confirmé'
+                  };
+
+                  // Save to Firestore with a generated ID
+                  final docRef = await _firestore.collection('appointments').add(appointmentData);
+
+                  // Update the appointment with its ID
+                  await docRef.update({'id': docRef.id});
+
+                  // Close the confirmation dialog
+                  Navigator.pop(context);
+                  
+                  // Return to the appointments screen with the new appointment
+                  Navigator.pop(context, {...appointmentData, 'id': docRef.id});
+                  
+                  // Show success message
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Rendez-vous confirmé avec succès'),
+                        backgroundColor: Color(0xFF0D8B8B),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  print('Error saving appointment: $e');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Erreur lors de la création du rendez-vous: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D8B8B),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Text('Confirmer'),
+              child: const Text(
+                'Confirmer le rendez-vous',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         );
