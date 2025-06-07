@@ -11,6 +11,7 @@ import 'InformationDoc/doctors_screen.dart';  // Assurez-vous que ce chemin est 
 import 'InforamtionPatient/patient_profile_screen.dart'; // Profile de Patient
 import 'rdv/appointments_screen.dart';
 import 'InformationDoc/doctor_details_screen.dart';  // Corrected import path
+import 'chat/chat_screen.dart';
 
 
 
@@ -920,7 +921,23 @@ class AppointmentsTab extends StatelessWidget {
                             icon: Icons.message,
                             label: 'Message',
                             onPressed: () {
-                              // Implémenter la messagerie
+                              // Get doctor details from the appointment
+                              final doctorDetails = {
+                                'id': appointment['doctorId'],
+                                'name': appointment['doctorName'],
+                                'speciality': appointment['specialty'],
+                                'photo': appointment['photo'],
+                              };
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChatScreen(
+                                    doctor: doctorDetails,
+                                    appointmentId: appointment['id'],
+                                  ),
+                                ),
+                              );
                             },
                           ),
                           _buildActionButton(
