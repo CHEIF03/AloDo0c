@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class PatientProfileScreen extends StatefulWidget {
   const PatientProfileScreen({Key? key}) : super(key: key);
@@ -12,50 +13,7 @@ class PatientProfileScreen extends StatefulWidget {
 }
 
 class _PatientProfileScreenState extends State<PatientProfileScreen> {
-  // Données fictives du patient
-  final Map<String, dynamic> _patientData = {
-    'photo': 'assets/images/profile.jpeg',
-    'nom': 'Alaoui',
-    'prenom': 'Ahmed',
-    'dateNaissance': '15/05/1985',
-    'sexe': 'Homme',
-    'adresse': '123 Avenue Mohammed V, Casablanca',
-    'telephone': '0612345678',
-    'email': 'ahmed.alaoui@gmail.com',
-    'groupeSanguin': 'A+',
-    'allergies': ['Pénicilline', 'Arachides'],
-    'maladiesChroniquer': ['Diabète type 2', 'Hypertension'],
-    'traitementsCourants': [
-      {'nom': 'Metformine', 'dosage': '500mg', 'frequence': '2 fois par jour'},
-      {'nom': 'Lisinopril', 'dosage': '10mg', 'frequence': '1 fois par jour'},
-    ],
-    'contactUrgence': {
-      'nom': 'Alaoui Fatima',
-      'relation': 'Épouse',
-      'telephone': '0612345679',
-    },
-    'assurance': {
-      'type': 'CNOPS',
-      'numero': 'CN123456789',
-      'validite': '31/12/2025',
-    },
-    'historiqueConsultations': [
-      {
-        'date': '10/04/2025',
-        'medecin': 'Dr. Karim Alami',
-        'specialite': 'Cardiologue',
-        'motif': 'Contrôle annuel',
-      },
-      {
-        'date': '15/03/2025',
-        'medecin': 'Dr. Amina Benali',
-        'specialite': 'Endocrinologue',
-        'motif': 'Suivi diabète',
-      },
-    ],
-  };
-
-  // Index de l'onglet actif
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   int _currentTabIndex = 0;
 
   // Liste des onglets
@@ -63,7 +21,6 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     'Profil',
     'Médical',
     'Documents',
-    'Rendez-vous',
   ];
 
   @override
@@ -89,117 +46,128 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
           IconButton(
             icon: const Icon(Icons.edit, color: Color(0xFF0D8B8B)),
             onPressed: () {
-              // Naviguer vers l'écran d'édition du profil
               _showEditProfileOptions();
             },
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: Color(0xFF0D8B8B)),
             onPressed: () {
-              // Naviguer vers les paramètres
               _showSettingsOptions();
             },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // En-tête avec photo et informations de base
-          _buildProfileHeader(),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(_auth.currentUser?.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF0D8B8B),
+              ),
+            );
+          }
 
-          // Onglets
-          Container(
-            color: Colors.white,
-            child: Row(
-              children: List.generate(
-                _tabs.length,
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Erreur: ${snapshot.error}'),
+            );
+          }
+
+          final userData = snapshot.data?.data() as Map<String, dynamic>? ?? {};
+          
+          return Column(
+            children: [
+              // En-tête avec photo et informations de base
+              _buildProfileHeader(userData),
+
+              // Onglets
+              Container(
+                color: Colors.white,
+                child: Row(
+                  children: List.generate(
+                    _tabs.length,
                     (index) => Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _currentTabIndex = index;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: _currentTabIndex == index
-                                ? const Color(0xFF0D8B8B)
-                                : Colors.transparent,
-                            width: 3,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _currentTabIndex = index;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: _currentTabIndex == index
+                                    ? const Color(0xFF0D8B8B)
+                                    : Colors.transparent,
+                                width: 3,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      child: Text(
-                        _tabs[index],
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: _currentTabIndex == index
-                              ? const Color(0xFF0D8B8B)
-                              : Colors.grey,
-                          fontWeight: _currentTabIndex == index
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                          child: Text(
+                            _tabs[index],
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: _currentTabIndex == index
+                                  ? const Color(0xFF0D8B8B)
+                                  : Colors.grey,
+                              fontWeight: _currentTabIndex == index
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
 
-          // Contenu de l'onglet sélectionné
-          Expanded(
-            child: IndexedStack(
-              index: _currentTabIndex,
-              children: [
-                _buildProfileTab(),
-                _buildMedicalTab(),
-                _buildDocumentsTab(),
-                _buildAppointmentsTab(),
-              ],
-            ),
-          ),
-        ],
+              // Contenu de l'onglet sélectionné
+              Expanded(
+                child: IndexedStack(
+                  index: _currentTabIndex,
+                  children: [
+                    _buildProfileTab(userData),
+                    _buildMedicalTab(),
+                    _buildDocumentsTab(),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  // En-tête du profil avec photo et informations de base
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader(Map<String, dynamic> userData) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          // Photo de profil
           CircleAvatar(
             radius: 40,
             backgroundColor: Colors.grey[300],
-            backgroundImage: _patientData['photo'] != null && _patientData['photo'].isNotEmpty
-                ? AssetImage(_patientData['photo']) // photo depuis assets
-                : null, // sinon pas de backgroundImage
-            child: _patientData['photo'] == null || _patientData['photo'].isEmpty
-                ? const Icon(
+            child: const Icon(
               Icons.person,
               size: 40,
               color: Colors.white,
-            )
-                : null, // Pas d'icône si image présente
+            ),
           ),
-
           const SizedBox(width: 20),
-
-          // Informations de base
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_patientData['prenom']} ${_patientData['nom']}',
+                  '${userData['prenom'] ?? ''} ${userData['nom'] ?? ''}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -207,7 +175,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  'Né le ${_patientData['dateNaissance']} (${_calculateAge(_patientData['dateNaissance'])} ans)',
+                  'Age: ${userData['age']?.toString() ?? '0'} ans',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 14,
@@ -223,7 +191,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        'Groupe ${_patientData['groupeSanguin']}',
+                        'Assurance: ${userData['assurance']?['type'] ?? 'Non spécifié'}',
                         style: const TextStyle(
                           color: Color(0xFF0D8B8B),
                           fontWeight: FontWeight.bold,
@@ -232,31 +200,32 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: const [
-                          Icon(
-                            Icons.warning_amber,
-                            color: Colors.orange,
-                            size: 12,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'Allergies',
-                            style: TextStyle(
+                    if ((userData['allergies'] as List?)?.isNotEmpty ?? false)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber,
                               color: Colors.orange,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              size: 12,
                             ),
-                          ),
-                        ],
+                            SizedBox(width: 4),
+                            Text(
+                              'Allergies',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ],
@@ -267,189 +236,492 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     );
   }
 
-  // Onglet Profil
-  Widget _buildProfileTab() {
+  Widget _buildProfileTab(Map<String, dynamic> userData) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Informations personnelles
-          _buildSectionTitle('Informations personnelles'),
           _buildInfoCard([
             _buildInfoItem(
               Icons.person,
               'Nom complet',
-              '${_patientData['prenom']} ${_patientData['nom']}',
+              '${userData['prenom'] ?? ''} ${userData['nom'] ?? ''}',
             ),
             _buildInfoItem(
               Icons.calendar_today,
-              'Date de naissance',
-              _patientData['dateNaissance'],
+              'Age',
+              '${userData['age']?.toString() ?? '0'} ans',
             ),
             _buildInfoItem(
               Icons.male,
               'Sexe',
-              _patientData['sexe'],
+              userData['sexe'] ?? 'Non spécifié',
             ),
             _buildInfoItem(
               Icons.location_on,
               'Adresse',
-              _patientData['adresse'],
+              userData['adresse'] ?? 'Non spécifiée',
             ),
-          ]),
+          ], sectionTitle: 'Informations personnelles'),
 
           const SizedBox(height: 20),
 
           // Coordonnées
-          _buildSectionTitle('Coordonnées'),
           _buildInfoCard([
             _buildInfoItem(
               Icons.phone,
               'Téléphone',
-              _patientData['telephone'],
+              userData['telephone'] ?? 'Non spécifié',
             ),
             _buildInfoItem(
               Icons.email,
               'Email',
-              _patientData['email'],
+              userData['email'] ?? 'Non spécifié',
             ),
-          ]),
-
-          const SizedBox(height: 20),
-
-          // Contact d'urgence
-          _buildSectionTitle('Contact d\'urgence'),
-          _buildInfoCard([
-            _buildInfoItem(
-              Icons.person_pin,
-              'Nom',
-              _patientData['contactUrgence']['nom'],
-            ),
-            _buildInfoItem(
-              Icons.family_restroom,
-              'Relation',
-              _patientData['contactUrgence']['relation'],
-            ),
-            _buildInfoItem(
-              Icons.phone,
-              'Téléphone',
-              _patientData['contactUrgence']['telephone'],
-            ),
-          ]),
+          ], sectionTitle: 'Coordonnées'),
 
           const SizedBox(height: 20),
 
           // Informations d'assurance
-          _buildSectionTitle('Assurance médicale'),
           _buildInfoCard([
             _buildInfoItem(
               Icons.medical_services,
               'Type d\'assurance',
-              _patientData['assurance']['type'],
+              userData['assurance']?['type'] ?? 'Non spécifié',
             ),
             _buildInfoItem(
               Icons.credit_card,
               'Numéro d\'assuré',
-              _patientData['assurance']['numero'],
+              userData['assurance']?['numero'] ?? 'Non spécifié',
             ),
             _buildInfoItem(
               Icons.calendar_today,
               'Validité',
-              _patientData['assurance']['validite'],
+              userData['assurance']?['validite'] ?? 'Non spécifiée',
             ),
-          ]),
+          ], sectionTitle: 'Assurance médicale'),
+
+          const SizedBox(height: 20),
+
+          // Compte
+          _buildInfoCard([
+            _buildInfoItem(
+              Icons.person_outline,
+              'Role',
+              userData['role'] ?? 'Non spécifié',
+            ),
+            _buildInfoItem(
+              Icons.calendar_today,
+              'Créé le',
+              _formatTimestamp(userData['createdAt'] as Timestamp?),
+            ),
+          ], sectionTitle: 'Compte'),
 
           const SizedBox(height: 20),
 
           // Options de confidentialité
-          _buildSectionTitle('Confidentialité et sécurité'),
           _buildPrivacyOptions(),
         ],
       ),
     );
   }
 
-  // Onglet Médical
+  String _formatTimestamp(Timestamp? timestamp) {
+    if (timestamp == null) return 'Non spécifié';
+    final date = timestamp.toDate();
+    return DateFormat('d MMMM yyyy à HH:mm', 'fr_FR').format(date);
+  }
+
+  // Widget pour le contenu de l'onglet médical
   Widget _buildMedicalTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Allergies
-          _buildSectionTitle('Allergies'),
-          _buildListCard(
-            _patientData['allergies'].map<Widget>((allergy) {
-              return _buildMedicalItem(
-                Icons.dangerous,
-                allergy,
-                color: Colors.red,
-              );
-            }).toList(),
-            onAddPressed: () {
-              // Ajouter une allergie
-            },
-          ),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(_auth.currentUser?.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF0D8B8B),
+            ),
+          );
+        }
 
-          const SizedBox(height: 20),
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Erreur: ${snapshot.error}'),
+          );
+        }
 
-          // Maladies chroniques
-          _buildSectionTitle('Maladies chroniques'),
-          _buildListCard(
-            _patientData['maladiesChroniquer'].map<Widget>((disease) {
-              return _buildMedicalItem(
-                Icons.monitor_heart,
-                disease,
-                color: Colors.orange,
-              );
-            }).toList(),
-            onAddPressed: () {
-              // Ajouter une maladie chronique
-            },
-          ),
+        final userData = snapshot.data?.data() as Map<String, dynamic>? ?? {};
+        
+        // Initialize medical data if not exists
+        if (!userData.containsKey('allergies') ||
+            !userData.containsKey('maladiesChroniquer') ||
+            !userData.containsKey('traitementsCourants')) {
+          // Initialize the fields if they don't exist
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(_auth.currentUser?.uid)
+              .set({
+                'allergies': userData['allergies'] ?? [],
+                'maladiesChroniquer': userData['maladiesChroniquer'] ?? [],
+                'traitementsCourants': userData['traitementsCourants'] ?? [],
+              }, SetOptions(merge: true));
+        }
 
-          const SizedBox(height: 20),
+        final List<dynamic> allergies = List.from(userData['allergies'] ?? []);
+        final List<dynamic> maladiesChroniquer = List.from(userData['maladiesChroniquer'] ?? []);
+        final List<dynamic> traitementsCourants = List.from(userData['traitementsCourants'] ?? []);
 
-          // Traitements en cours
-          _buildSectionTitle('Traitements en cours'),
-          Column(
-            children: _patientData['traitementsCourants'].map<Widget>((treatment) {
-              return _buildTreatmentCard(
-                treatment['nom'],
-                treatment['dosage'],
-                treatment['frequence'],
-              );
-            }).toList(),
-          ),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Allergies
+              _buildSectionTitle('Allergies'),
+              _buildListCard(
+                allergies.isEmpty
+                    ? [
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            'Aucune allergie enregistrée',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        )
+                      ]
+                    : allergies.map<Widget>((allergy) {
+                        return _buildMedicalItem(
+                          Icons.dangerous,
+                          allergy.toString(),
+                          color: Colors.red,
+                        );
+                      }).toList(),
+                onAddPressed: () {
+                  _addAllergy();
+                },
+              ),
 
-          // Bouton pour ajouter un traitement
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: OutlinedButton.icon(
-              onPressed: () {
-                // Ajouter un traitement
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Ajouter un traitement'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF0D8B8B),
-                side: const BorderSide(color: Color(0xFF0D8B8B)),
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+              const SizedBox(height: 20),
+
+              // Maladies chroniques
+              _buildSectionTitle('Maladies chroniques'),
+              _buildListCard(
+                maladiesChroniquer.isEmpty
+                    ? [
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            'Aucune maladie chronique enregistrée',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        )
+                      ]
+                    : maladiesChroniquer.map<Widget>((disease) {
+                        return _buildMedicalItem(
+                          Icons.monitor_heart,
+                          disease.toString(),
+                          color: Colors.orange,
+                        );
+                      }).toList(),
+                onAddPressed: () {
+                  _addChronicDisease();
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Traitements en cours
+              _buildSectionTitle('Traitements en cours'),
+              if (traitementsCourants.isEmpty)
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Aucun traitement en cours',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Column(
+                  children: traitementsCourants.map<Widget>((treatment) {
+                    return _buildTreatmentCard(
+                      treatment['nom'] ?? '',
+                      treatment['dosage'] ?? '',
+                      treatment['frequence'] ?? '',
+                    );
+                  }).toList(),
+                ),
+
+              // Bouton pour ajouter un traitement
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _addTreatment();
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Ajouter un traitement'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0D8B8B),
+                    side: const BorderSide(color: Color(0xFF0D8B8B)),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ),
               ),
+
+              const SizedBox(height: 20),
+
+              // Carnet de vaccination
+              _buildSectionTitle('Carnet de vaccination'),
+              _buildVaccinationCard(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Ajouter une allergie
+  void _addAllergy() {
+    final TextEditingController allergyController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Ajouter une allergie'),
+          content: TextField(
+            controller: allergyController,
+            decoration: const InputDecoration(
+              hintText: 'Nom de l\'allergie',
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (allergyController.text.isNotEmpty) {
+                  try {
+                    final userDoc = FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(_auth.currentUser?.uid);
+                    
+                    await userDoc.update({
+                      'allergies': FieldValue.arrayUnion([allergyController.text])
+                    });
+                    
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Allergie ajoutée avec succès'),
+                          backgroundColor: Color(0xFF0D8B8B),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Erreur lors de l\'ajout: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D8B8B),
+              ),
+              child: const Text('Ajouter'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-          const SizedBox(height: 20),
+  // Ajouter une maladie chronique
+  void _addChronicDisease() {
+    final TextEditingController diseaseController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Ajouter une maladie chronique'),
+          content: TextField(
+            controller: diseaseController,
+            decoration: const InputDecoration(
+              hintText: 'Nom de la maladie',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (diseaseController.text.isNotEmpty) {
+                  try {
+                    final userDoc = FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(_auth.currentUser?.uid);
+                    
+                    await userDoc.update({
+                      'maladiesChroniquer': FieldValue.arrayUnion([diseaseController.text])
+                    });
+                    
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Maladie chronique ajoutée avec succès'),
+                          backgroundColor: Color(0xFF0D8B8B),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Erreur lors de l\'ajout: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D8B8B),
+              ),
+              child: const Text('Ajouter'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-          // Carnet de vaccination
-          _buildSectionTitle('Carnet de vaccination'),
-          _buildVaccinationCard(),
-        ],
-      ),
+  // Ajouter un traitement
+  void _addTreatment() {
+    final nameController = TextEditingController();
+    final dosageController = TextEditingController();
+    final frequencyController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Ajouter un traitement'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  hintText: 'Nom du médicament',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: dosageController,
+                decoration: const InputDecoration(
+                  hintText: 'Dosage (ex: 100mg)',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: frequencyController,
+                decoration: const InputDecoration(
+                  hintText: 'Fréquence (ex: 2 fois par jour)',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isNotEmpty &&
+                    dosageController.text.isNotEmpty &&
+                    frequencyController.text.isNotEmpty) {
+                  try {
+                    final treatment = {
+                      'nom': nameController.text,
+                      'dosage': dosageController.text,
+                      'frequence': frequencyController.text,
+                    };
+
+                    final userDoc = FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(_auth.currentUser?.uid);
+                    
+                    await userDoc.update({
+                      'traitementsCourants': FieldValue.arrayUnion([treatment])
+                    });
+                    
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Traitement ajouté avec succès'),
+                          backgroundColor: Color(0xFF0D8B8B),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Erreur lors de l\'ajout: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D8B8B),
+              ),
+              child: const Text('Ajouter'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -536,80 +808,6 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     );
   }
 
-  // Onglet Rendez-vous
-  Widget _buildAppointmentsTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Navigation entre rendez-vous à venir et passés
-          Row(
-            children: [
-              Expanded(
-                child: _buildAppointmentTabButton(
-                  'À venir',
-                  isSelected: true,
-                ),
-              ),
-              Expanded(
-                child: _buildAppointmentTabButton(
-                  'Passés',
-                  isSelected: false,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Liste des rendez-vous
-          Expanded(
-            child: ListView(
-              children: [
-                _buildAppointmentCard(
-                  'Dr. Karim Alami',
-                  'Cardiologue',
-                  '24 Avril, 2025',
-                  '10:30',
-                  status: 'Confirmé',
-                  isUpcoming: true,
-                ),
-                _buildAppointmentCard(
-                  'Dr. Amina Benali',
-                  'Endocrinologue',
-                  '15 Mai, 2025',
-                  '14:00',
-                  status: 'En attente',
-                  isUpcoming: true,
-                ),
-              ],
-            ),
-          ),
-
-          // Bouton pour prendre un nouveau rendez-vous
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // Naviguer vers l'écran de prise de rendez-vous
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Nouveau rendez-vous'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0D8B8B),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // Widget pour les titres de section
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -626,19 +824,219 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
   }
 
   // Widget pour les cartes d'information
-  Widget _buildInfoCard(List<Widget> children) {
+  Widget _buildInfoCard(List<Widget> children, {required String sectionTitle}) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
-        ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  sectionTitle,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Color(0xFF0D8B8B),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.edit,
+                    color: Color(0xFF0D8B8B),
+                    size: 20,
+                  ),
+                  onPressed: () => _showEditSectionDialog(sectionTitle),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  // Dialogue pour éditer une section
+  void _showEditSectionDialog(String section) {
+    Map<String, TextEditingController> controllers = {};
+    List<String> fields = [];
+
+    // Définir les champs à éditer selon la section
+    switch (section) {
+      case 'Informations personnelles':
+        fields = ['Nom complet', 'Age', 'Sexe', 'Adresse'];
+        break;
+      case 'Coordonnées':
+        fields = ['Téléphone', 'Email'];
+        break;
+      case 'Contact d\'urgence':
+        fields = ['Nom', 'Relation', 'Téléphone'];
+        break;
+      case 'Assurance médicale':
+        fields = ['Type d\'assurance', 'Numéro d\'assuré', 'Validité'];
+        break;
+      case 'Compte':
+        fields = ['Role'];
+        break;
+    }
+
+    // Créer les contrôleurs pour chaque champ
+    for (var field in fields) {
+      controllers[field] = TextEditingController();
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 20,
+            left: 20,
+            right: 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Modifier $section',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                ...fields.map((field) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: TextField(
+                    controller: controllers[field],
+                    decoration: InputDecoration(
+                      labelText: field,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF0D8B8B),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                )).toList(),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      try {
+                        // Préparer les données à mettre à jour
+                        Map<String, dynamic> updateData = {};
+                        
+                        // Convertir les champs selon la section
+                        switch (section) {
+                          case 'Informations personnelles':
+                            final nameParts = controllers['Nom complet']?.text.split(' ');
+                            if (nameParts != null && nameParts.isNotEmpty) {
+                              updateData['prenom'] = nameParts.first;
+                              if (nameParts.length > 1) {
+                                updateData['nom'] = nameParts.sublist(1).join(' ');
+                              }
+                            }
+                            updateData['age'] = int.tryParse(controllers['Age']?.text ?? '') ?? 0;
+                            updateData['sexe'] = controllers['Sexe']?.text;
+                            updateData['adresse'] = controllers['Adresse']?.text;
+                            break;
+                          case 'Coordonnées':
+                            updateData['telephone'] = controllers['Téléphone']?.text;
+                            updateData['email'] = controllers['Email']?.text;
+                            break;
+                          case 'Contact d\'urgence':
+                            updateData['urgence'] = {
+                              'nom': controllers['Nom']?.text,
+                              'relation': controllers['Relation']?.text,
+                              'telephone': controllers['Téléphone']?.text,
+                            };
+                            break;
+                          case 'Assurance médicale':
+                            updateData['assurance'] = {
+                              'type': controllers['Type d\'assurance']?.text,
+                              'numero': controllers['Numéro d\'assuré']?.text,
+                              'validite': controllers['Validité']?.text,
+                            };
+                            break;
+                        }
+
+                        // Mettre à jour Firestore
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(_auth.currentUser?.uid)
+                            .update(updateData);
+
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Modifications enregistrées avec succès'),
+                              backgroundColor: Color(0xFF0D8B8B),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Erreur lors de la sauvegarde: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D8B8B),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Enregistrer'),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1017,210 +1415,6 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         ),
       ),
     );
-  }
-
-  // Widget pour les boutons d'onglet de rendez-vous
-  Widget _buildAppointmentTabButton(String label, {required bool isSelected}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: isSelected
-                ? const Color(0xFF0D8B8B)
-                : Colors.transparent,
-            width: 2,
-          ),
-        ),
-      ),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: isSelected ? const Color(0xFF0D8B8B) : Colors.grey,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-    );
-  }
-
-  // Widget pour les cartes de rendez-vous
-  Widget _buildAppointmentCard(
-      String doctorName,
-      String specialty,
-      String date,
-      String time, {
-        required String status,
-        required bool isUpcoming,
-      }) {
-    Color statusColor;
-    if (status == 'Confirmé') {
-      statusColor = Colors.green;
-    } else if (status == 'En attente') {
-      statusColor = Colors.orange;
-    } else {
-      statusColor = Colors.red;
-    }
-
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        doctorName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        specialty,
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    status,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.event,
-                      color: Color(0xFF0D8B8B),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      date,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 20),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.access_time,
-                      color: Color(0xFF0D8B8B),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      time,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            if (isUpcoming) ...[
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      // Annuler le rendez-vous
-                    },
-                    child: const Text('Annuler'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: () {
-                      // Modifier le rendez-vous
-                    },
-                    child: const Text('Modifier'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D8B8B),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Fonction pour calculer l'âge à partir de la date de naissance
-  int _calculateAge(String birthDateStr) {
-    final parts = birthDateStr.split('/');
-    final day = int.parse(parts[0]);
-    final month = int.parse(parts[1]);
-    final year = int.parse(parts[2]);
-
-    final birthDate = DateTime(year, month, day);
-    final today = DateTime.now();
-
-    int age = today.year - birthDate.year;
-
-    // Vérifier si l'anniversaire est déjà passé cette année
-    final currentBirthday = DateTime(today.year, birthDate.month, birthDate.day);
-    if (today.isBefore(currentBirthday)) {
-      age--;
-    }
-
-    return age;
   }
 
   // Dialogue pour l'édition du profil

@@ -30,32 +30,31 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  intl: ^0.19.0  # or whatever version you're using
-  table_calendar: ^3.0.9  # or whatever version you're using
+  intl: ^0.18.1
+  table_calendar: ^3.0.9
   flutter_localizations:
     sdk: flutter
   font_awesome_flutter: ^10.6.0
   shared_preferences: ^2.2.2
   
   # Firebase
-  firebase_core: ^2.27.1
-  firebase_auth: ^4.17.9
-  cloud_firestore: ^4.15.9
-  firebase_storage: ^11.6.10
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  cloud_firestore: ^4.13.6
   google_sign_in: ^6.2.1
   
   # Pour ouvrir des URL, faire des appels, etc.
-  url_launcher: ^6.1.14
+  url_launcher: ^6.2.2
 
   # Pour lancer des applications de cartographie avec une adresse
   maps_launcher: ^2.2.0
 
   # Pour partager du contenu avec d'autres applications
-  share_plus: ^7.0.2
+  share_plus: ^7.2.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^1.0.2
 
 dev_dependencies:
   flutter_test:

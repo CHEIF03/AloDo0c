@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
 
-// Import components
+// Import components  
 import 'InformationDoc/doctor_details_screen.dart';
 import 'home/home_tab.dart';
 import 'InformationDoc/doctors_screen.dart';
@@ -336,16 +336,168 @@ class HomeTab extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Rendez-vous à venir',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('appointments')
+                    .where('patientId', isEqualTo: currentUser?.uid)
+                    .where('status', whereIn: ['confirmé', 'en attente'])
+                    .orderBy('date')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Text(
+                      'Rendez-vous à venir...',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Text(
+                      'Aucun rendez-vous à venir',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }
+
+                  // Filter and get the next upcoming appointment
+                  final now = DateTime.now();
+                  final upcomingAppointments = snapshot.data!.docs
+                      .map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        data['id'] = doc.id; // Add the document ID to the data
+                        return data;
+                      })
+                      .where((appointment) {
+                        final appointmentDate = (appointment['date'] as Timestamp).toDate();
+                        return appointmentDate.isAfter(now);
+                      })
+                      .toList();
+
+                  upcomingAppointments.sort((a, b) {
+                    final aDate = (a['date'] as Timestamp).toDate();
+                    final bDate = (b['date'] as Timestamp).toDate();
+                    return aDate.compareTo(bDate);
+                  });
+
+                  if (upcomingAppointments.isEmpty) {
+                    return const Text(
+                      'Aucun rendez-vous à venir',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }
+
+                  final nextAppointment = upcomingAppointments.first;
+                  final appointmentDate = (nextAppointment['date'] as Timestamp).toDate();
+                  final formattedDate = DateFormat('dd/MM/yyyy à HH:mm').format(appointmentDate);
+                  final doctorName = nextAppointment['doctorName'] ?? 'Médecin';
+                  final specialty = nextAppointment['specialty'] ?? '';
+                  
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Prochain rendez-vous',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0D8B8B).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.calendar_today,
+                                color: Color(0xFF0D8B8B),
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    doctorName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Text(
+                                    specialty,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    formattedDate,
+                                    style: const TextStyle(
+                                      color: Color(0xFF0D8B8B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0D8B8B).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                nextAppointment['status'] ?? 'En attente',
+                                style: const TextStyle(
+                                  color: Color(0xFF0D8B8B),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               TextButton(
                 onPressed: () {
-                  // Voir tous les rendez-vous
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AppointmentsTab(),
+                    ),
+                  );
                 },
                 child: const Text(
                   'Voir tous',
@@ -360,12 +512,105 @@ class HomeTab extends StatelessWidget {
           const SizedBox(height: 10),
 
           // Carte de rendez-vous
-          _buildAppointmentCard(
-            doctorName: 'Dr. Karim Alami',
-            specialty: 'Cardiologue',
-            date: '24 Avril, 2025',
-            time: '10:30',
-            status: 'Confirmé',
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('appointments')
+                .where('patientId', isEqualTo: currentUser?.uid)
+                .where('status', whereIn: ['confirmé', 'en attente'])
+                .orderBy('date')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF0D8B8B),
+                  ),
+                );
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Aucun rendez-vous à venir',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // Filter and get the next upcoming appointment
+              final now = DateTime.now();
+              final upcomingAppointments = snapshot.data!.docs
+                  .map((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    data['id'] = doc.id; // Add the document ID to the data
+                    return data;
+                  })
+                  .where((appointment) {
+                    final appointmentDate = (appointment['date'] as Timestamp).toDate();
+                    return appointmentDate.isAfter(now);
+                  })
+                  .toList();
+
+              upcomingAppointments.sort((a, b) {
+                final aDate = (a['date'] as Timestamp).toDate();
+                final bDate = (b['date'] as Timestamp).toDate();
+                return aDate.compareTo(bDate);
+              });
+
+              if (upcomingAppointments.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Aucun rendez-vous à venir',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final nextAppointment = upcomingAppointments.first;
+              final appointmentDate = (nextAppointment['date'] as Timestamp).toDate();
+              
+              return _buildAppointmentCard(
+                doctorName: nextAppointment['doctorName'] ?? 'Médecin',
+                specialty: nextAppointment['specialty'] ?? '',
+                date: DateFormat('dd MMMM, yyyy', 'fr_FR').format(appointmentDate),
+                time: DateFormat('HH:mm').format(appointmentDate),
+                status: nextAppointment['status'] ?? 'En attente',
+              );
+            },
           ),
         ],
       ),
@@ -555,7 +800,7 @@ class HomeTab extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: const Color(0xFF0D8B8B).withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Center(
@@ -621,29 +866,20 @@ class HomeTab extends StatelessWidget {
               ],
             ),
           ),
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0D8B8B).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  status,
-                  style: const TextStyle(
-                    color: Color(0xFF0D8B8B),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D8B8B).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              status,
+              style: const TextStyle(
+                color: Color(0xFF0D8B8B),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
-              const SizedBox(height: 10),
-              const Icon(
-                Icons.more_vert,
-                color: Colors.grey,
-              ),
-            ],
+            ),
           ),
         ],
       ),
