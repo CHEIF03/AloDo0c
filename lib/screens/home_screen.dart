@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
 
-// Import components 
+// Import components
 import 'InformationDoc/doctor_details_screen.dart';
 import 'home/home_tab.dart';
 import 'InformationDoc/doctors_screen.dart';
@@ -277,7 +277,7 @@ class HomeTab extends StatelessWidget {
                   );
                 },
                 child: const Text(
-                  'Voir tous',
+                  'Voir tous les médecins',
                   style: TextStyle(
                     color: Color(0xFF0D8B8B),
                   ),
@@ -527,7 +527,7 @@ class HomeTab extends StatelessWidget {
                   );
                 },
                 child: const Text(
-                  'Voir tous',
+                  'Voir tous les rendez-vous',
                   style: TextStyle(
                     color: Color(0xFF0D8B8B),
                   ),
