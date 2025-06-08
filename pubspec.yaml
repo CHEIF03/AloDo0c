@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  intl: ^0.18.1
+  intl: ^0.19.0
   table_calendar: ^3.0.9
   flutter_localizations:
     sdk: flutter
@@ -61,10 +61,8 @@ dev_dependencies:
     sdk: flutter
 
   # Autres dépendances utiles
-  shared_preferences: ^2.1.1  # Pour stocker les préférences utilisateur
   http: ^0.13.6  # Pour les appels API
   provider: ^6.0.5  # Pour la gestion d'état
-
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

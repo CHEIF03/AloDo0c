@@ -48,18 +48,35 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
 
   Stream<QuerySnapshot> _getAppointmentsStream() {
     final user = _auth.currentUser;
-    if (user == null) return const Stream.empty();
+    if (user == null) {
+      print('DEBUG: User is null');
+      return const Stream.empty();
+    }
 
-    print('Fetching appointments for user: ${user.uid}');
+    print('\nDEBUG: Current Auth State:');
+    print('  User ID: ${user.uid}');
+    print('  Email: ${user.email}');
+    print('  Expected patientId in DB: Jx6UPGIlexeZx9z1cIuXvE6kSo43');
 
     return _firestore
         .collection('appointments')
-        .where('patientId', isEqualTo: user.uid)
-        .where('status', whereIn: ['confirmé', 'en attente'])
-        .orderBy('date')
+        // Query without any filters first to see all appointments
         .snapshots()
         .map((snapshot) {
-          print('Total appointments in collection: ${snapshot.docs.length}');
+          print('\nDEBUG: All Appointments:');
+          print('Total appointments: ${snapshot.docs.length}');
+          
+          for (var doc in snapshot.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            print('\nAppointment {');
+            print('  id: ${doc.id}');
+            print('  patientId: ${data['patientId']}');
+            print('  patientEmail: ${data['patientEmail']}');
+            print('  status: ${data['status']}');
+            print('  doctorName: ${data['doctorName']}');
+            print('  date: ${(data['date'] as Timestamp).toDate()}');
+            print('}');
+          }
           return snapshot;
         });
   }
@@ -234,21 +251,26 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
 
   Widget _buildUpcomingTab(List<QueryDocumentSnapshot> appointments) {
     final now = DateTime.now();
-    print('\nFiltering upcoming appointments...');
+    print('\nDEBUG: Processing appointments for Upcoming tab');
     print('Total appointments before filtering: ${appointments.length}');
     
-    // Filter upcoming appointments similar to home_screen.dart
     final upcomingAppointments = appointments
         .map((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          data['id'] = doc.id; // Add the document ID to the data
+          data['id'] = doc.id;
           return data;
         })
         .where((appointment) {
           final appointmentDate = (appointment['date'] as Timestamp).toDate();
-          final status = appointment['status'] as String? ?? '';
+          final patientId = appointment['patientId'];
+          
+          print('\nDEBUG: Checking appointment:');
+          print('  Date: $appointmentDate');
+          print('  PatientId: $patientId');
+          print('  Current user: ${_auth.currentUser?.uid}');
+          
           return appointmentDate.isAfter(now) && 
-              (status.toLowerCase() == 'confirmé' || status.toLowerCase() == 'en attente');
+                 patientId == _auth.currentUser?.uid;
         })
         .toList();
 

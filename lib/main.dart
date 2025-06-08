@@ -13,7 +13,21 @@ import 'screens/authentification/inscription_screen.dart';
 import 'screens/authentification/inscription_medecin_screen.dart';
 import 'screens/home_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (kIsWeb) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.web,
+    );
+  } else {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
+  await initializeDateFormatting('fr_FR', null);
+  
   runApp(const MyApp());
 }
 
@@ -22,48 +36,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: _initializeApp(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: Text('Error: ${snapshot.error}'),
-              ),
-            ),
-          );
-        }
-
-        if (snapshot.connectionState == ConnectionState.done) {
-          return const AloDocApp();
-        }
-
-        return const MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _initializeApp() async {
-    WidgetsFlutterBinding.ensureInitialized();
-
-    if (kIsWeb) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.web,
-      );
-    } else {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    }
-
-    await initializeDateFormatting('fr_FR', null);
+    return const AloDocApp();
   }
 }
 

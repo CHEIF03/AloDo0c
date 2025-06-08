@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../InformationDoc/doctors_screen.dart';
 import '../InformationDoc/doctor_details_screen.dart';
+import '../rdv/appointments_screen.dart';
 
 class HomeTab extends StatelessWidget {
   const HomeTab({Key? key}) : super(key: key);
@@ -247,14 +248,44 @@ class HomeTab extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  // Voir tous les rendez-vous
-                },
-                child: const Text(
-                  'Voir tous',
-                  style: TextStyle(
-                    color: Color(0xFF0D8B8B),
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D8B8B).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AppointmentsScreen(),
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text(
+                            'Voir tous',
+                            style: TextStyle(
+                              color: Color(0xFF0D8B8B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward,
+                            color: Color(0xFF0D8B8B),
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),

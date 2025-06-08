@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
 
-// Import components  
+// Import components 
 import 'InformationDoc/doctor_details_screen.dart';
 import 'home/home_tab.dart';
 import 'InformationDoc/doctors_screen.dart';
@@ -26,6 +26,19 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    // Add authentication state listener
+    _auth.authStateChanges().listen((User? user) {
+      print('DEBUG: Auth State Changed:');
+      print('  User: ${user?.uid}');
+      print('  Email: ${user?.email}');
+      print('  EmailVerified: ${user?.emailVerified}');
+    });
+  }
 
   final List<Widget> _pages = [
     const HomeTab(),           // Page d'accueil
@@ -340,9 +353,23 @@ class HomeTab extends StatelessWidget {
                 stream: FirebaseFirestore.instance
                     .collection('appointments')
                     .where('patientId', isEqualTo: currentUser?.uid)
-                    .where('status', whereIn: ['confirmé', 'en attente'])
                     .orderBy('date')
-                    .snapshots(),
+                    .snapshots()
+                    .map((snapshot) {
+                      print('DEBUG: Home - Raw appointments count: ${snapshot.docs.length}');
+                      print('DEBUG: Home - Current user ID: ${currentUser?.uid}');
+                      print('DEBUG: Home - Appointments data:');
+                      for (var doc in snapshot.docs) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        print('DEBUG: Home - Appointment {');
+                        print('  id: ${doc.id}');
+                        print('  patientId: ${data['patientId']}');
+                        print('  status: ${data['status']}');
+                        print('  date: ${(data['date'] as Timestamp).toDate()}');
+                        print('}');
+                      }
+                      return snapshot;
+                    }),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Text(
@@ -356,7 +383,7 @@ class HomeTab extends StatelessWidget {
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return const Text(
-                      'Aucun rendez-vous à venir',
+                      '',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -516,7 +543,6 @@ class HomeTab extends StatelessWidget {
             stream: FirebaseFirestore.instance
                 .collection('appointments')
                 .where('patientId', isEqualTo: currentUser?.uid)
-                .where('status', whereIn: ['confirmé', 'en attente'])
                 .orderBy('date')
                 .snapshots(),
             builder: (context, snapshot) {
@@ -544,7 +570,7 @@ class HomeTab extends StatelessWidget {
                   ),
                   child: const Center(
                     child: Text(
-                      'Aucun rendez-vous à venir',
+                      '',
                       style: TextStyle(
                         color: Colors.grey,
                         fontSize: 16,
