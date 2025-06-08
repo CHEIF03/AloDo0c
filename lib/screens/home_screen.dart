@@ -8,43 +8,13 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
 
 // Import components
+import 'InformationDoc/doctor_details_screen.dart';
 import 'home/home_tab.dart';
 import 'InformationDoc/doctors_screen.dart';
 import 'rdv/appointments_screen.dart';
 import 'chat/chat_screen.dart';
 import 'InforamtionPatient/patient_profile_screen.dart';
 import 'widgets/alodoc_logo.dart';
-
-// Widget pour le logo AloDoc
-class AloDocLogo extends StatelessWidget {
-  final double height;
-
-  const AloDocLogo({Key? key, this.height = 80}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/images/logo_doc.png',
-      height: height,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          height: height,
-          padding: const EdgeInsets.all(8),
-          child: const Center(
-            child: Text(
-              'AloDoc',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0D8B8B),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
 
 // Main HomeScreen widget
 class HomeScreen extends StatefulWidget {
@@ -100,7 +70,6 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
-            print("Navigating to tab $index");
           });
         },
         selectedItemColor: const Color(0xFF0D8B8B),
@@ -151,63 +120,86 @@ class HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bannière de bienvenue
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D8B8B),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Bonjour, Ahmed',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 5),
-                      Text(
-                        'Comment vous sentez-vous aujourd\'hui ?',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
-                      SizedBox(height: 15),
-                      Text(
-                        'Consultez un médecin',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+          // Bannière de bienvenue avec le nom de l'utilisateur
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser?.uid)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF0D8B8B),
                   ),
+                );
+              }
+
+              final userData = snapshot.data?.data() as Map<String, dynamic>?;
+              final String userName = userData != null 
+                  ? '${userData['prenom']} ${userData['nom']}'
+                  : 'Utilisateur';
+
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D8B8B),
+                  borderRadius: BorderRadius.circular(15),
                 ),
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  child: const Icon(
-                    Icons.health_and_safety,
-                    color: Colors.white,
-                    size: 30,
-                  ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bonjour, $userName',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          const Text(
+                            'Comment vous sentez-vous aujourd\'hui ?',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+                          const Text(
+                            'Consultez un médecin',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      child: const Icon(
+                        Icons.health_and_safety,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
 
           const SizedBox(height: 20),

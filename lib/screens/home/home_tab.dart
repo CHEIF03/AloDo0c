@@ -18,6 +18,36 @@ class HomeTab extends StatelessWidget {
     'assets/images/doc8.jpeg',
   ];
 
+  Widget _buildServiceCard({
+    required Color color,
+    required IconData icon,
+    required String title,
+  }) {
+    return Expanded(
+      child: Card(
+        elevation: 0,
+        color: color,
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            children: [
+              Icon(icon, size: 30, color: Colors.black54),
+              const SizedBox(height: 5),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -242,44 +272,6 @@ class HomeTab extends StatelessWidget {
             status: 'Confirmé',
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildServiceCard({
-    required Color color,
-    required IconData icon,
-    required String title,
-  }) {
-    return Expanded(
-      child: Card(
-        elevation: 0,
-        color: Colors.transparent,
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: const Color(0xFF0D8B8B),
-                size: 30,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
       ),
     );
   }
