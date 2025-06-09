@@ -15,6 +15,7 @@ import 'rdv/appointments_screen.dart';
 import 'chat/chat_screen.dart';
 import 'InforamtionPatient/patient_profile_screen.dart';
 import 'widgets/alodoc_logo.dart';
+import '../widgets/floating_chat_button.dart';
 
 // Main HomeScreen widget
 class HomeScreen extends StatefulWidget {
@@ -78,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _pages[_selectedIndex],
+      floatingActionButton: const FloatingChatButton(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {

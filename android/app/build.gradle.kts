@@ -22,8 +22,9 @@ plugins {
 
 android {
     namespace = "com.alodoc"
-    compileSdk = 34  // Updated to latest stable Android SDK
-    ndkVersion = "25.1.8937393"  // Updated NDK version
+    compileSdk = 35  // Updated to meet google_sign_in_android requirement
+
+    ndkVersion = "25.1.8937393"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -40,8 +41,8 @@ android {
 
     defaultConfig {
         applicationId = "com.alodoc"
-        minSdk = 21  // Updated for Firebase
-        targetSdk = 34  // Updated to match compileSdk
+        minSdk = 21
+        targetSdk = 35  // Updated to match compileSdk
         versionCode = flutterVersionCode.toInt()
         versionName = flutterVersionName
         multiDexEnabled = true
@@ -50,6 +51,10 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
+        }
+        debug {
+            isMinifyEnabled = false  // Disable minification for debug builds
+            isShrinkResources = false  // Disable resource shrinking for debug builds
         }
     }
 }
@@ -60,6 +65,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.android.gms:play-services-auth:20.7.0")
     implementation("com.android.support:multidex:1.0.3")
+    implementation("com.google.android.play:core:1.10.3")
 }
 
 flutter {
