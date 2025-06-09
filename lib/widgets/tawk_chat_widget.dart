@@ -21,7 +21,11 @@ class _TawkChatWidgetState extends State<TawkChatWidget> {
       // Create a div to hold the Tawk.to script
       final hostElement = html.DivElement()
         ..style.width = '100%'
-        ..style.height = '100%';
+        ..style.height = '100%'
+        ..style.position = 'fixed'
+        ..style.bottom = '0'
+        ..style.right = '0'
+        ..id = 'tawk-chat-container';
 
       // Add the Tawk.to script
       final script = html.ScriptElement()
@@ -35,6 +39,22 @@ class _TawkChatWidgetState extends State<TawkChatWidget> {
             s1.setAttribute('crossorigin','*');
             s0.parentNode.insertBefore(s1,s0);
           })();
+
+          // Adjust the button position
+          Tawk_API.customStyle = {
+            visibility : {
+              desktop: {
+                position : 'br',
+                xOffset: 20,
+                yOffset: 100 // Increased offset from bottom
+              },
+              mobile: {
+                position : 'br',
+                xOffset: 20,
+                yOffset: 100 // Increased offset from bottom
+              }
+            }
+          };
         ''';
 
       hostElement.children.add(script);
@@ -47,19 +67,10 @@ class _TawkChatWidgetState extends State<TawkChatWidget> {
     }
   }
 
-  Future<void> _launchTawkWebsite() async {
-    final Uri url = Uri.parse('https://tawk.to/chat/6846faf7f5d578190ca9f989/1itak8m8r');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (kIsWeb) {
-      return SizedBox(
-        width: double.infinity,
-        height: double.infinity,
+      return SizedBox.expand(
         child: HtmlElementView(
           viewType: _iframeElementId,
         ),
@@ -71,10 +82,10 @@ class _TawkChatWidgetState extends State<TawkChatWidget> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.chat_bubble_outline,
-            size: 48,
-            color: Color(0xFF0D8B8B),
+          Image.network(
+            'https://www.tawk.to/wp-content/uploads/2020/04/tawk-stickerr.png',
+            width: 48,
+            height: 48,
           ),
           const SizedBox(height: 16),
           const Text(
@@ -86,7 +97,12 @@ class _TawkChatWidgetState extends State<TawkChatWidget> {
           ),
           const SizedBox(height: 8),
           ElevatedButton(
-            onPressed: _launchTawkWebsite,
+            onPressed: () async {
+              final Uri url = Uri.parse('https://tawk.to/chat/6846faf7f5d578190ca9f989/1itak8m8r');
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0D8B8B),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
